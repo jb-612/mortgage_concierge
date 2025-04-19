@@ -5,3 +5,6 @@ __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
+# docs
+_docs/guides
+_docs/adk-docs
