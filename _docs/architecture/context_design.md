@@ -1,67 +1,68 @@
-Below is an explanation of how the three tools and the agent come together to provide a complete solution for handling bank documents:
+Below is an explanation of how our Mortgage Concierge agent ingests bank policy documents into memory, provides search over them, and manages session state. We then suggest next steps to create a sub-agent for enhanced retrieval.
 
 ---
 
-### 1. upload_bank_docs.py  
+### 1. Memory Ingestion (memory_ingestion.py)
 **Purpose:**  
-– This tool is responsible for ingesting bank documents (stored in _knowledge_base/bank_docs or as defined by BANK_DOCS_PATH) into the ADK memory.  
-– It reads each document, creates a session for it (using InMemorySessionService), and then stores the document in memory via InMemoryMemoryService.  
+- At agent startup, `mortgage_concierge.agent` calls `ingest_bank_docs_to_memory()`.  
+- This function scans `BANK_DOCS_PATH` (defaults to `_knowledge_base/bank_docs`), reads all `.txt` and `.md` files,
+  creates a system session per file via `InMemorySessionService`, and stores the content as events in the global
+  `InMemoryMemoryService`.
 
 **Role in the Solution:**  
-– Acts as the bootstrap step to load data into memory so that subsequent searches have rich context.  
-– It’s invoked explicitly (or in tests) to ensure that the knowledge base is up-to-date inside the memory store.
+- Ensures that all bank policy documents are available in the in-memory store before any user interaction.
+- Provides the basis for contextual, retrieval-augmented generation by making document contents queryable.
 
 ---
 
-### 2. bank_docs.py  
+### 2. Document Search (`tools/bank_docs.py`)
 **Purpose:**  
-– This tool performs the semantic search over the ingested bank documents kept in the memory store.  
-– It first checks the ToolContext’s state for a memory service instance (creating one if needed) and then calls the memory service’s search_memory method.  
-– It processes the results, returning a concise snippet (e.g., truncated content) for each retrieved document.
+- Implements `search_bank_docs(query)` as an ADK `FunctionTool`.  
+- Calls the global `memory_service.search_memory(app_name="mortgage_advisor", user_id="system", query=query)`
+  to retrieve matching `MemoryResult` entries and extracts up to 200 characters of snippet text from each event.
 
 **Role in the Solution:**  
-– Provides the dynamic lookup mechanism that the agent uses when it needs to recall stored bank document content based on a query.  
-– It bridges the gap between memory ingestion (upload_bank_docs) and the agent’s need to retrieve context during a session.
+- Enables the agent to ground its advice in factual policy snippets, supporting retrieval-augmented answers.
+- This tool is explicitly called in `AGENT_INSTRUCTION` when the model needs bank policy details.
 
 ---
 
-### 3. store_state.py  
+### 3. State Persistence (`tools/store_state.py`)
 **Purpose:**  
-– This utility tool updates the tool context’s state.  
-– While it might look simple, it is important for passing around state between tools.  
-– For example, you might use it to update the context with new information that subsequent tools (like bank_docs.py) might rely upon.
+- Provides `store_state(state: dict, tool_context)`, merging the given `state` dict into `tool_context.state`.
 
 **Role in the Solution:**  
-– Though it does not directly participate in the memory ingestion or search, it provides a mechanism for ensuring that state (such as an already initialized memory service) can be persisted and shared.
+- Used by the agent (phase 1) to `memorize` each borrower profile field into session state under the `user_profile` key.
+- Supports passing structured data (e.g. `BorrowerProfile`) between conversational turns.
   
 ---
 
-### 4. Agent Integration in agent.py  
+### 4. Agent Integration (`agent.py`)
 **How It Ties Together:**  
-– The agent’s tools list registers all of the above tools (and others, like list_loan_tracks).  
-– **upload_bank_docs_tool** ensures that the documents are ingested before searches occur.  
-– **search_bank_docs** (from bank_docs.py) is available for the agent to perform semantic searches on the ingested data.  
-– **store_state_tool** is available for other parts of your agent’s workflow when you need to update the state.  
+- At import time, `ingest_bank_docs_to_memory()` is called to load the knowledge base.
+- The `Agent` is initialized with tools:
+  - `store_state_tool` for phase 1 profiling.
+  - `search_bank_docs` for document retrieval.
+  - `list_loan_tracks` for listing available loan products.
+  - (Future) sub-agents or additional tools.
 
 **Overall Flow:**  
-1. **Initialization / Pre-Session Setup:**  
-   – You trigger the upload_bank_docs_tool manually or via an agent workflow to load the bank documents into memory.
-2. **During a Session:**  
-   – When the user asks about bank policies, the agent calls the search_bank_docs tool.  
-   – It retrieves the relevant document snippets from the memory using the previously ingested data.
-3. **State Sharing:**  
-   – store_state_tool ensures that any additional state or memory service object can be shared across tool invocations.
+1. **Startup:**  memory ingestion runs once, populating the memory_service.
+2. **Phase 1 Conversation:**
+   - The model asks for profile fields; after each, it invokes `store_state`.
+3. **Retrieval Calls:**
+   - When instructions specify, the model emits a `search_bank_docs` function call.
+   - The tool returns policy snippets; the LLM’s next generation uses them for grounded answers.
 
 ---
 
-### Are They Redundant?  
+### Complementary Roles
 
-– **No.** Each tool has a distinct responsibility:
-  - **upload_bank_docs** ingests and prepares data.
-  - **search_bank_docs** provides runtime search over that data.
-  - **store_state** is a utility to help manage shared state between tools.
-  
-They form a complementary toolset that altogether covers our solution needs: data ingestion, state management, and semantic search.
+These components provide a cohesive retrieval-augmented workflow:
+- **Ingestion (memory_ingestion):** Bootstraps KB content into memory.
+- **Retrieval (search_bank_docs):** Keyword‑based recall of policy snippets.
+- **State (store_state):** Persists borrower profile and any interim data.
+- **Product Listing (list_loan_tracks):** Static retrieval of loan configuration.
 
 ---
 
@@ -78,13 +79,19 @@ They form a complementary toolset that altogether covers our solution needs: dat
 
 ---
 
-### Conclusion
+### Next Steps: Enhanced Retrieval via a Sub‑Agent
 
-Your design approach now covers all aspects of the solution:
+To move beyond simple keyword lookup and improve relevance:
+1. **Sub‑Agent for Semantic Retrieval:**
+   - Implement a `retrieval_agent` that:
+     - Uses embeddings (OpenAI or VertexAI) to vectorize queries and document chunks.
+     - Calls a vector-store-backed `search_memory` or a specialized RAG retrieval tool (e.g., `in memory ChomaDB`).
+     - Returns top‑k context snippets to the main agent.
+2. **Query Expansion & Refinement:**
+   - Wrap user questions in a small LLM chain to rephrase or expand keywords before search.
+   - Integrate as a lightweight tool or in a callback to improve hit rates.
+3. **Session‑Aware Retrieval:**
+   - Leverage `tool_context.state` (e.g., `user_profile`) to bias retrieval (e.g., only show policies relevant to the borrower’s credit range).
 
-- **Data Ingestion:** via upload_bank_docs.py
-- **Semantic Search:** via bank_docs.py  
-- **State Sharing:** via store_state.py
-
-With the agent configured in agent.py to bring them together, you have a coherent tool set that is not redundant but complementary. The design appears to be complete; just ensure that ingestion is done before search queries and that the environment variables (like BANK_DOCS_PATH) are set correctly.
+By layering a dedicated retrieval sub-agent, you can achieve true semantic RAG, ensuring that your mortgage advisor leverages the full richness of your policy documents for accurate, context‑aware answers.
 
