@@ -39,6 +39,9 @@ if LiteLlm is not None and isinstance(MODEL_ID, str) and MODEL_ID.startswith("op
 from mortgage_concierge.tools.bank_docs import search_bank_docs
 from mortgage_concierge.tools.loan_tracks import list_loan_tracks
 from mortgage_concierge.tools.store_state import store_state_tool
+from mortgage_concierge.tools.loan_calculator import loan_calculator
+
+
 
 root_agent = Agent(
     name=APP_NAME,
@@ -49,6 +52,7 @@ root_agent = Agent(
         store_state_tool,  
         search_bank_docs,   # Tool for searching bank policy documents
         list_loan_tracks,
+        loan_calculator,    # Tool for loan calculations
     ],  # Tools for factual grounding and loan track listing
     output_key="last_advice",
 )

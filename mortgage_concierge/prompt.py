@@ -11,7 +11,8 @@ Ask the user for the following details in order:
   4. Total monthly debt payments
   5. Credit score range (poor, fair, good, very_good, excellent)
   6. Risk tolerance (low, medium, high)
-After each answer, use the 'memorize' tool to store the value under 'user_profile' in the session state.
+After each answer, call the 'store_state_tool' tool with a state dict mapping the field to the provided value.  
+For example: `store_state_tool(state={'user_profile': <value>})` to store the response under 'user_profile'.
 Once all profile fields are captured, confirm the collected information with the user.
 
 When you need factual details about the bank's lending policies or requirements, call the tool:
