@@ -29,6 +29,7 @@
     payment
     • Add requests to your service dependencies
     • Ensure .env contains LOAN_CALCULATOR_API_URL=http://localhost:8001/api/calculate‑loan
+    • (Optional) Maintain an OpenAPI v3 spec at mortgage_concierge/openapi/loan_calculator.yaml and install PyYAML; use ADK’s OpenAPI integration to auto‑generate your calculator tools.
 
     ## 3. Phase 1 – Single‑Endpoint Integration  
 
@@ -42,6 +43,7 @@
         – If set, POST { amount, termYears } and return { status: 'ok', data: <response> }.
         – On network/JSON errors, log and return { status: 'error', error_message: … }.
         – Else (no URL), load the mock JSON from tests/unit/data/… and return it as before.
+      • Alternatively, if you have an OpenAPI v3 spec for your calculator service, place it at mortgage_concierge/openapi/loan_calculator.yaml and call load_loan_calculator_api_tools() in your agent to auto‑generate RestApiTool functions (calculateLoan, recalculateWithNewRate, recalculateWithNewTerm).
     3.3. Tests
       • Write pytest cases that:
         – Monkeypatch requests.post to return a fake Response with a minimal payload.
@@ -96,8 +98,8 @@
 
         1. Profile gathering → `store_state_tool`
         2. Track listing → `list_loan_tracks`
-        3. Single simulation → `calculator_tool`
-        4. “What‑if” variations → `recalculate_*_tool`
+        3. Single simulation → `calculateLoan` (auto‑generated RestApiTool)
+        4. “What‑if” variations → `recalculateWithNewRate` and `recalculateWithNewTerm` (auto‑generated RestApiTools)
         5. Multi‑track packages → `LoanSimulationAgent`
         6. Evaluation → `PackageEvaluatorAgent`
         7. Final recommendation & document generation (via artifacts/plugins)
@@ -112,7 +114,7 @@
            • Once Phase 1 is green, branch into **Phase 2** (next week) for recalc endpoints
            • Schedule a design review for **Phase 3** (sub‑agent orchestration)
            • Throughout, consult:
-             – ADK OpenAPI Tools (for future auto‑gen endpoints)
+             – ADK OpenAPI Tools & your mortgage_concierge/openapi/loan_calculator.yaml spec (for auto‑gen endpoints)
              – ADK Callbacks & Runtime docs (for observability)
              – ADK Sessions & Artifacts (for persistence & UI)
              – ADK Multi‑Agents & Custom‑Agents (for sub‑agent best practices)
