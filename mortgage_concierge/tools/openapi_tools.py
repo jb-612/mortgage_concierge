@@ -13,10 +13,11 @@ def load_loan_calculator_api_tools():
     Load the OpenAPI spec for the loan calculator and return generated RestApiTool tools.
     Requires a spec file at mortgage_concierge/openapi/loan_calculator.yaml.
     """
-    # Resolve path to the spec file
-    spec_file = Path(__file__).resolve().parents[2] / "openapi" / "loan_calculator.yaml"
+    # Resolve path to the spec file within the mortgage_concierge package
+    # __file__ is .../mortgage_concierge/tools/openapi_tools.py; parents[1] is the mortgage_concierge package root
+    spec_file = Path(__file__).resolve().parents[1] / "openapi" / "loan_calculator.yaml"
     if not spec_file.exists():
-        raise FileNotFoundError(f"OpenAPI spec not found at {spec_file}")
+        raise FileNotFoundError(f"OpenAPI spec not found at {spec_file}. Ensure the file is under mortgage_concierge/openapi/")
     # Load spec (YAML or JSON)
     with open(spec_file, 'r') as f:
         spec_dict = yaml.safe_load(f)
