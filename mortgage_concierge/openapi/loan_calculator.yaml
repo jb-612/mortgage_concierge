@@ -1,0 +1,268 @@
+openapi: 3.0.3
+info:
+  title: Mortgage Calculator Service
+  description: |
+    Service for performing mortgage calculations with interest rates and amortization schedules.
+    This API enables third-party applications to calculate loan details, recalculate with
+    different interest rates or terms, and retrieve calculation results.
+  version: 1.0.0
+  contact:
+    name: Mortgage Calculator Team
+servers:
+  - url: http://localhost:8001
+    description: Local development server
+paths:
+  /health:
+    get:
+      summary: Health check endpoint
+      description: Verifies that the service is operational
+      operationId: healthCheck
+      tags:
+        - system
+      responses:
+        "200":
+          description: Service is operational
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+  /api/calculate-loan:
+    post:
+      summary: Calculate loan details
+      description: |
+        Calculate loan details based on provided amount and term.
+        Returns a calculation object with monthly payment, total repayment,
+        interest details, and an amortization schedule.
+      operationId: calculateLoan
+      tags:
+        - loan-calculator
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - amount
+                - termYears
+              properties:
+                amount:
+                  type: number
+                  description: Loan amount in currency units
+                  example: 300000
+                termYears:
+                  type: number
+                  description: Loan term in years
+                  example: 25
+      responses:
+        "200":
+          description: Successful calculation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoanCalculation"
+        "400":
+          description: Invalid loan parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/recalculate-rate:
+    post:
+      summary: Recalculate loan with new interest rate
+      description: |
+        Recalculate an existing loan calculation with a new interest rate.
+        Requires the GUID of a previous calculation and the new interest rate.
+      operationId: recalculateWithNewRate
+      tags:
+        - loan-calculator
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - guid
+                - newRate
+              properties:
+                guid:
+                  type: string
+                  format: uuid
+                  description: GUID of the original calculation
+                  example: "123e4567-e89b-12d3-a456-426614174000"
+                newRate:
+                  type: number
+                  description: New interest rate in percentage
+                  example: 4.5
+      responses:
+        "200":
+          description: Successful recalculation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoanCalculation"
+        "400":
+          description: Missing required parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/recalculate-term:
+    post:
+      summary: Recalculate loan with new term
+      description: |
+        Recalculate an existing loan calculation with a new loan term.
+        Requires the GUID of a previous calculation and the new term in years.
+      operationId: recalculateWithNewTerm
+      tags:
+        - loan-calculator
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - guid
+                - newTermYears
+              properties:
+                guid:
+                  type: string
+                  format: uuid
+                  description: GUID of the original calculation
+                  example: "123e4567-e89b-12d3-a456-426614174000"
+                newTermYears:
+                  type: number
+                  description: New loan term in years
+                  example: 20
+      responses:
+        "200":
+          description: Successful recalculation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoanCalculation"
+        "400":
+          description: Missing required parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+components:
+  schemas:
+    Error:
+      type: object
+      properties:
+        detail:
+          type: string
+          description: Error message
+          example: "Invalid loan parameters"
+    AmortizationPayment:
+      type: object
+      properties:
+        paymentNumber:
+          type: integer
+          description: Payment sequence number
+          example: 1
+        payment:
+          type: number
+          description: Total payment amount
+          example: 1500.50
+        principal:
+          type: number
+          description: Amount of principal paid
+          example: 750.25
+        interest:
+          type: number
+          description: Amount of interest paid
+          example: 750.25
+        remainingBalance:
+          type: number
+          description: Remaining loan balance after payment
+          example: 299249.75
+    LoanCalculation:
+      type: object
+      properties:
+        guid:
+          type: string
+          format: uuid
+          description: Unique identifier for the calculation
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        loanAmount:
+          type: number
+          description: Original loan amount
+          example: 300000
+        loanTermMonths:
+          type: integer
+          description: Loan term in months
+          example: 300
+        loanTermYears:
+          type: number
+          description: Loan term in years
+          example: 25
+        interestType:
+          type: string
+          description: Type of interest (fixed, variable)
+          example: "fixed"
+        interestRate:
+          type: number
+          description: Interest rate in percentage
+          example: 4.25
+        firstMonthlyPayment:
+          type: number
+          description: Amount of the first monthly payment
+          example: 1500.50
+        maxMonthlyPayment:
+          type: number
+          description: Maximum monthly payment amount (for variable rate loans)
+          example: 1500.50
+        totalRepayment:
+          type: number
+          description: Total amount to be repaid over the loan term
+          example: 450150
+        totalInterest:
+          type: number
+          description: Total interest to be paid over the loan term
+          example: 150150
+        effectiveInterestRate:
+          type: number
+          description: Effective annual interest rate as a percentage
+          example: 4.35
+        amortizationSchedule:
+          type: array
+          description: Payment schedule for the first year
+          items:
+            $ref: "#/components/schemas/AmortizationPayment"
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp of calculation
+          example: "2025-04-21T15:30:45.123Z"
+tags:
+  - name: loan-calculator
+    description: Loan calculation operations
+  - name: system
+    description: System operations
