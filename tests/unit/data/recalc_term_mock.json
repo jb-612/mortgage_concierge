@@ -1,0 +1,7 @@
+{
+  "amount": 500000,
+  "desiredPayment": 3000.0,
+  "interestRate": 4.0,
+  "newTermYears": 18,
+  "monthlyPayment": 3000.0
+}

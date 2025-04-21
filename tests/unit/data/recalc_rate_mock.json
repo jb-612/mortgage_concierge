@@ -1,0 +1,6 @@
+{
+  "amount": 500000,
+  "termYears": 20,
+  "overrideRate": 3.5,
+  "newMonthlyPayment": 3000.0
+}
