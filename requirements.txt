@@ -4,3 +4,5 @@ python-dotenv>=0.20.0
 google-adk>=0.1.0
 litellm
 google-generativeai # Explicitly add if needed for types, ADK usually includes it
+pytest>=7.0.0
+PyYAML>=6.0
