@@ -7,6 +7,6 @@ __pycache__/
 *.pyd
 # docs
 _docs/guides
-_docs/adk-docs
 _docs/adk-samples-main
 repomix-mortgage.txt
+.aider*
