@@ -10,3 +10,6 @@ _docs/guides
 _docs/adk-samples-main
 repomix-mortgage.txt
 .aider*
+.coverage
+uv.lock
+.gitignore
