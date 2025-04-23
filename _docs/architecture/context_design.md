@@ -2,16 +2,16 @@ Below is an explanation of how our Mortgage Concierge agent ingests bank policy 
 
 ---
 
-### 1. Memory Ingestion (memory_ingestion.py)
+### 1. Bootstrapped Memory Ingestion (bootstrap.py)
 **Purpose:**  
-- At agent startup, `mortgage_concierge.agent` calls `ingest_bank_docs_to_memory()`.  
-- This function scans `BANK_DOCS_PATH` (defaults to `_knowledge_base/bank_docs`), reads all `.txt` and `.md` files,
-  creates a system session per file via `InMemorySessionService`, and stores the content as events in the global
-  `InMemoryMemoryService`.
+- The bootstrap module provides a cached initialization approach using `@lru_cache(maxsize=None)`. 
+- The `init()` function loads environment variables and triggers document ingestion.
+- The `ingest_bank_docs_to_memory()` function (in memory_ingestion.py) scans `BANK_DOCS_PATH` (defaults to `_knowledge_base/bank_docs`), reads all `.txt` and `.md` files, creates a system session per file via `InMemorySessionService`, and stores the content as events in the global `InMemoryMemoryService`.
 
 **Role in the Solution:**  
-- Ensures that all bank policy documents are available in the in-memory store before any user interaction.
-- Provides the basis for contextual, retrieval-augmented generation by making document contents queryable.
+- Ensures that bank policy documents are ingested exactly once per process runtime.
+- Provides a clean separation between initialization and usage.
+- Supports the ADK memory service pattern for long-term knowledge storage.
 
 ---
 
@@ -23,75 +23,99 @@ Below is an explanation of how our Mortgage Concierge agent ingests bank policy 
 
 **Role in the Solution:**  
 - Enables the agent to ground its advice in factual policy snippets, supporting retrieval-augmented answers.
-- This tool is explicitly called in `AGENT_INSTRUCTION` when the model needs bank policy details.
+- This tool is explicitly referenced in `AGENT_INSTRUCTION` when the model needs bank policy details.
+- Follows the ADK pattern for tool usage with a clear docstring explaining when to use the tool.
 
 ---
 
 ### 3. State Persistence (`tools/store_state.py`)
 **Purpose:**  
 - Provides `store_state(state: dict, tool_context)`, merging the given `state` dict into `tool_context.state`.
+- Uses the ADK `ToolContext` parameter to access session state.
 
 **Role in the Solution:**  
-- Used by the agent (phase 1) to `memorize` each borrower profile field into session state under the `user_profile` key.
+- Used by the agent (phase 1) to memorize each borrower profile field into session state.
 - Supports passing structured data (e.g. `BorrowerProfile`) between conversational turns.
+- Will be extended to store loan calculation results (e.g. `loan_calculation_guid`, `loan_initial_results`) in Phase 2.
   
 ---
 
 ### 4. Agent Integration (`agent.py`)
 **How It Ties Together:**  
-- At import time, `ingest_bank_docs_to_memory()` is called to load the knowledge base.
-- The `Agent` is initialized with tools:
-  - `store_state_tool` for phase 1 profiling.
+- The agent file loads environment variables and configures the model.
+- The OpenAPI tools for loan calculator endpoints are loaded via `load_loan_calculator_api_tools()`.
+- The `Agent` is initialized with all necessary tools:
+  - `store_state_tool` for phase 1 profiling and calculator state management.
   - `search_bank_docs` for document retrieval.
   - `list_loan_tracks` for listing available loan products.
-  - (Future) sub-agents or additional tools.
+  - OpenAPI-generated REST API tools for loan calculations.
 
 **Overall Flow:**  
-1. **Startup:**  memory ingestion runs once, populating the memory_service.
-2. **Phase 1 Conversation:**
+1. **Startup:** Bootstrap's `init()` runs once via import or explicit call, configuring environment and populating the memory service.
+2. **Phase 1 Conversation:**
    - The model asks for profile fields; after each, it invokes `store_state`.
 3. **Retrieval Calls:**
    - When instructions specify, the model emits a `search_bank_docs` function call.
-   - The tool returns policy snippets; the LLM’s next generation uses them for grounded answers.
+   - The tool returns policy snippets; the LLM's next generation uses them for grounded answers.
+4. **Phase 2 Calculations (Planned):**
+   - The agent will automatically trigger `calculateLoan` and store results in session state.
+   - When requested, it will display results from session state.
+   - For "what-if" scenarios, it will use `recalculateWithNewRate` and `recalculateWithNewTerm` with the stored GUID.
 
 ---
 
-### Complementary Roles
+### Memory & State Architecture
 
-These components provide a cohesive retrieval-augmented workflow:
-- **Ingestion (memory_ingestion):** Bootstraps KB content into memory.
-- **Retrieval (search_bank_docs):** Keyword‑based recall of policy snippets.
-- **State (store_state):** Persists borrower profile and any interim data.
-- **Product Listing (list_loan_tracks):** Static retrieval of loan configuration.
+The implementation follows ADK's memory and state architecture:
+
+1. **Long-Term Knowledge (Memory):**
+   - Bank policy documents and rules are stored in the `memory_service`
+   - These are ingested at startup and remain available throughout the process lifecycle
+   - Accessed via `search_bank_docs` for retrieval-augmented generation
+
+2. **Session State (ToolContext.state):**
+   - Borrower profile data stored via `store_state_tool`
+   - Session-specific values like `loan_calculation_guid` and results
+   - User preferences like selected loan tracks
+
+3. **Tool Context Usage:**
+   - Tools access shared session state via the `tool_context` parameter
+   - This follows the ADK pattern for tools to read/write state as needed
 
 ---
 
 ### Final Considerations
 
-– **Ensure Sequence:**  
-  Make sure that the ingestion tool (upload_bank_docs_tool) is triggered before any search requests are made. This can be done as part of your session startup flow or via testing scripts.
+– **Bootstrap Optimizations:**  
+  The `@lru_cache` decorator ensures optimal performance by preventing redundant document ingestion, following the singleton pattern.
 
 – **State Management:**  
-  The use of the tool_context.state to cache the memory service is a good design choice, ensuring that you aren’t reinitializing the memory service unnecessarily.
+  Session state is correctly managed via the `ToolContext` pattern, providing a clean interface for tools to share information.
 
-– **Agent Registration:**  
-  The agent configuration in agent.py correctly registers all these tools so that they’re available to the agent at runtime.
+– **OpenAPI Integration:**  
+  The use of ADK's OpenAPI tooling to generate REST API tools follows best practices for external service integration.
 
 ---
 
-### Next Steps: Enhanced Retrieval via a Sub‑Agent
+### Next Steps: Enhanced Retrieval and Calculator Integration
 
-To move beyond simple keyword lookup and improve relevance:
-1. **Sub‑Agent for Semantic Retrieval:**
+1. **Phase 2 Loan Calculator Implementation:**
+   - Update the prompt to use background calculation after profile collection
+   - Implement session state storage for loan calculation results
+   - Add user prompting for rate/term alternatives
+
+2. **Enhanced Semantic Retrieval:**
    - Implement a `retrieval_agent` that:
-     - Uses embeddings (OpenAI or VertexAI) to vectorize queries and document chunks.
-     - Calls a vector-store-backed `search_memory` or a specialized RAG retrieval tool (e.g., `in memory ChomaDB`).
-     - Returns top‑k context snippets to the main agent.
-2. **Query Expansion & Refinement:**
-   - Wrap user questions in a small LLM chain to rephrase or expand keywords before search.
-   - Integrate as a lightweight tool or in a callback to improve hit rates.
+     - Uses embeddings to vectorize queries and document chunks
+     - Calls a vector-store-backed `search_memory` (e.g., `ChromaDB` as in mortgage-chroma-mcp)
+     - Returns top‑k context snippets to the main agent
+   - Integration options:
+     - Standalone service with API endpoints
+     - Sub-agent accessed via an agent tool
+
 3. **Session‑Aware Retrieval:**
-   - Leverage `tool_context.state` (e.g., `user_profile`) to bias retrieval (e.g., only show policies relevant to the borrower’s credit range).
+   - Leverage `tool_context.state` (e.g., `user_profile`) to personalize retrieval
+   - Filter policies by relevance to borrower's specific situation
+   - Combine session state with loan calculation results for targeted advice
 
-By layering a dedicated retrieval sub-agent, you can achieve true semantic RAG, ensuring that your mortgage advisor leverages the full richness of your policy documents for accurate, context‑aware answers.
-
+By enhancing both the calculator integration and retrieval capabilities, the mortgage advisor can provide more personalized, context-aware financial guidance.
