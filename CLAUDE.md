@@ -48,11 +48,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   ```
 
 ## Project Architecture
-- **Bootstrap Pattern:** Uses `@lru_cache` in bootstrap.py to ensure one-time initialization
+- **Bootstrap Pattern:** 
+  - Uses `@lru_cache` in bootstrap.py to ensure one-time initialization
+  - Bootstrap is called from `__init__.py` to ensure docs are loaded before agent use
+  - Following ADK best practice to avoid import-time side effects
+  - Call `bootstrap.init()` explicitly before using the agent programmatically
 - **Memory Management:** 
   - Long-term knowledge stored in ADK's `InMemoryMemoryService`
-  - Bank documents ingested at startup
+  - Bank documents ingested at startup via bootstrap.init()
   - Retrieved via `search_bank_docs` tool
+  - Documents stored with session_id format `doc:{filename}`
 - **Session State:**
   - User profile and calculation data stored in session state
   - Access via `tool_context.state` in tools

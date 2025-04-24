@@ -7,7 +7,7 @@ from google.adk.agents import Agent
 # Local imports
 from mortgage_concierge.prompt import AGENT_INSTRUCTION
 
-# Load environment variables early (may be re‑run safely in bootstrap.init)
+# Load environment variables early
 load_dotenv()
 
 # Configuration
