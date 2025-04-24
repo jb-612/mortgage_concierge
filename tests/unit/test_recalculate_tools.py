@@ -11,7 +11,8 @@ from mortgage_concierge.tools.loan_calculator import (
 
 
 class DummyToolContext:
-    pass
+    def __init__(self):
+        self.state = {}
 
 
 @pytest.fixture(autouse=True)
@@ -33,7 +34,7 @@ def test_recalculate_rate_live_success(monkeypatch):
     monkeypatch.setenv("RECALC_RATE_API_URL", "http://fake-rate")
     monkeypatch.setattr(requests, "post", lambda *args, **kwargs: FakeResponse())
 
-    result = recalculate_rate_tool(1000, 10, 5.0, DummyToolContext())
+    result = recalculate_rate_tool("1000", 5.0, DummyToolContext())
     assert result["status"] == "ok"
     assert result["data"] == fake_data
 
@@ -45,13 +46,13 @@ def test_recalculate_rate_live_error(monkeypatch):
     monkeypatch.setenv("RECALC_RATE_API_URL", "http://fake-rate")
     monkeypatch.setattr(requests, "post", fake_post)
 
-    result = recalculate_rate_tool(2000, 15, 4.5, DummyToolContext())
+    result = recalculate_rate_tool("2000", 4.5, DummyToolContext())
     assert result["status"] == "error"
     assert "Recalculate rate service error" in result["error_message"]
 
 
 def test_recalculate_rate_fallback(monkeypatch):
-    result = recalculate_rate_tool(0, 0, 0, DummyToolContext())
+    result = recalculate_rate_tool("0", 0, DummyToolContext())
     assert result["status"] == "ok"
     data = result["data"]
     assert data["newMonthlyPayment"] == 3000.0
@@ -62,7 +63,7 @@ def test_recalculate_rate_fallback_file_not_found(monkeypatch):
     fake_path = Path("/nonexistent/recalc_rate_mock.json")
     monkeypatch.setattr(module, "Path", lambda *args, **kwargs: fake_path)
 
-    result = recalculate_rate_tool(0, 0, 0, DummyToolContext())
+    result = recalculate_rate_tool("0", 0, DummyToolContext())
     assert result["status"] == "error"
     assert "Mock data load error" in result["error_message"]
 
@@ -79,7 +80,7 @@ def test_recalculate_term_live_success(monkeypatch):
     monkeypatch.setenv("RECALC_TERM_API_URL", "http://fake-term")
     monkeypatch.setattr(requests, "post", lambda *args, **kwargs: FakeResponse())
 
-    result = recalculate_term_tool(1000, 800.0, 3.5, DummyToolContext())
+    result = recalculate_term_tool("1000", 12, DummyToolContext())
     assert result["status"] == "ok"
     assert result["data"] == fake_data
 
@@ -91,13 +92,13 @@ def test_recalculate_term_live_error(monkeypatch):
     monkeypatch.setenv("RECALC_TERM_API_URL", "http://fake-term")
     monkeypatch.setattr(requests, "post", fake_post)
 
-    result = recalculate_term_tool(2000, 1500.0, 4.0, DummyToolContext())
+    result = recalculate_term_tool("2000", 15, DummyToolContext())
     assert result["status"] == "error"
     assert "Recalculate term service error" in result["error_message"]
 
 
 def test_recalculate_term_fallback(monkeypatch):
-    result = recalculate_term_tool(0, 0, 0, DummyToolContext())
+    result = recalculate_term_tool("0", 0, DummyToolContext())
     assert result["status"] == "ok"
     data = result["data"]
     assert data["newTermYears"] == 18
@@ -108,6 +109,6 @@ def test_recalculate_term_fallback_file_not_found(monkeypatch):
     fake_path = Path("/nonexistent/recalc_term_mock.json")
     monkeypatch.setattr(module, "Path", lambda *args, **kwargs: fake_path)
 
-    result = recalculate_term_tool(0, 0, 0, DummyToolContext())
+    result = recalculate_term_tool("0", 0, DummyToolContext())
     assert result["status"] == "error"
     assert "Mock data load error" in result["error_message"]
