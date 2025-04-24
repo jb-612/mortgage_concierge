@@ -1,15 +1,17 @@
 # Ignore local environment files
 .env
+.gitignore
 # Ignore Python cache
 __pycache__/
+.pytest_cache
 *.py[cod]
 *.pyo
 *.pyd
 # docs
 _docs/guides
+_docs/adk-docs
 _docs/adk-samples-main
 repomix-mortgage.txt
 .aider*
 .coverage
 uv.lock
-.gitignore
