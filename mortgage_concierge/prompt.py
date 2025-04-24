@@ -12,8 +12,19 @@ Collect borrower profile information step by step. Ask the user for the followin
   4. Total monthly debt payments
   5. Credit score range (poor, fair, good, very_good, excellent)
   6. Risk tolerance (low, medium, high)
-After each answer, call the 'store_state_tool' tool with a state dict mapping the field to the provided value.  
-For example: `store_state_tool(state={'user_profile': <value>})` to store the response under 'user_profile'.
+After each answer, update a user profile object in your memory, but do not call any tools yet.
+Once all profile fields are collected, call store_state_tool EXACTLY like this:
+```
+store_state_tool(state={"user_profile": {
+  "property_value": value1,
+  "down_payment": value2,
+  "annual_income": value3,
+  "monthly_debt": value4,
+  "credit_score": value5,
+  "risk_tolerance": value6
+}})
+```
+NEVER call store_state_tool with individual fields as parameters. ONLY use the state parameter with a nested dictionary.
 Once all profile fields are captured, confirm the collected information with the user.
 
 ## Phase 2: Loan Calculation and Recommendation
