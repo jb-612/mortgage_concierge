@@ -15,6 +15,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Run the agent locally via ADK CLI: `adk run mortgage_concierge`
 - Run the web UI: `adk web` (then select mortgage_concierge from dropdown)
 - Run API server: `adk api_server mortgage_concierge`
+- Run evaluation tests: `adk eval mortgage_concierge tests/eval/data/loan_calculator.evalset.json --config_file_path=tests/eval/data/test_config.json --print_detailed_results`
 
 ### Using pip (Alternative)
 - Create virtual environment: `python -m venv .venv`
@@ -27,6 +28,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Run the agent locally via ADK CLI: `adk run mortgage_concierge`
 - Run the web UI: `adk web` (then select mortgage_concierge from dropdown)
 - Run API server: `adk api_server mortgage_concierge`
+- Run evaluation tests: `python -m pytest tests/eval/test_eval.py -v`
+
+## Tests to Run After Code Changes
+
+After making code changes to the loan calculator or related components:
+
+```bash
+# Unit tests
+python -m pytest tests/unit/test_loan_calculator.py tests/unit/test_recalculate_tools.py
+
+# Integration tests
+python -m pytest tests/integration/test_loan_calculator_integration.py
+
+# Evaluation tests
+python -m pytest tests/eval/test_eval.py
+```
 
 ## Environment Setup
 - Create `.env` file in project root with:
@@ -65,6 +82,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **OpenAPI Integration:**
   - Loan calculator tools generated from `mortgage_concierge/openapi/loan_calculator.yaml` spec
   - Calculator endpoints require GUID for recalculation operations
+- **Testing Framework:**
+  - Unit tests in tests/unit/
+  - Integration tests in tests/integration/
+  - ADK Evaluation tests in tests/eval/ (using the ADK evaluation framework)
 
 ## Code Style Guidelines
 - Use Python 3.11+ features and typing

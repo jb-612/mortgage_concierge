@@ -1,0 +1,114 @@
+[
+  {
+    "query": "Calculate a mortgage for me with a loan amount of 500000 and a term of 20 years",
+    "expected_tool_use": [
+      {
+        "tool_name": "loan_calculator",
+        "tool_input": {
+          "amount": 500000,
+          "termYears": 20
+        }
+      }
+    ],
+    "reference": "I've calculated a 20-year mortgage for $500,000:\n\n- Monthly payment: $3,096.17\n- Interest rate: 4.25%\n- Total repayment: $743,081.36\n- Total interest: $243,081.36\n\nWould you like to see how changing the interest rate or loan term affects your payments?"
+  },
+  {
+    "query": "What if the interest rate was 3.5% instead?",
+    "expected_tool_use": [
+      {
+        "tool_name": "recalculate_rate",
+        "tool_input": {
+          "guid": "00000000-0000-0000-0000-000000000000",
+          "newRate": 3.5
+        }
+      }
+    ],
+    "reference": "With an interest rate of 3.5% on your $500,000 mortgage over 20 years:\n\n- New monthly payment: $3,000.00 (reduced from $3,096.17)\n- You'll save approximately $96.17 per month\n\nWould you like to try a different rate or term?"
+  },
+  {
+    "query": "What if I changed the term to 15 years instead?",
+    "expected_tool_use": [
+      {
+        "tool_name": "recalculate_term",
+        "tool_input": {
+          "guid": "00000000-0000-0000-0000-000000000000",
+          "newTermYears": 15
+        }
+      }
+    ],
+    "reference": "With a 15-year term on your $500,000 mortgage:\n\n- New monthly payment: approximately $3,000.00\n- You'll pay more per month but save significantly on total interest\n- Total loan duration reduced by 5 years\n\nWould you like to compare any other terms or rates?"
+  },
+  {
+    "query": "Can you compare the monthly payments for a $400,000 loan with terms of 15, 20, and 30 years?",
+    "expected_tool_use": [
+      {
+        "tool_name": "loan_calculator",
+        "tool_input": {
+          "amount": 400000,
+          "termYears": 15
+        }
+      },
+      {
+        "tool_name": "loan_calculator",
+        "tool_input": {
+          "amount": 400000,
+          "termYears": 20
+        }
+      },
+      {
+        "tool_name": "loan_calculator",
+        "tool_input": {
+          "amount": 400000,
+          "termYears": 30
+        }
+      }
+    ],
+    "reference": "Here's a comparison of monthly payments for a $400,000 loan at different terms:\n\n15-year term:\n- Monthly payment: $3,096.17 (using 4.25% interest rate)\n- Total interest: $157,310.60\n\n20-year term:\n- Monthly payment: $2,476.94 (using 4.25% interest rate)\n- Total interest: $194,465.60\n\n30-year term:\n- Monthly payment: $1,967.76 (using 4.25% interest rate)\n- Total interest: $308,393.60\n\nThe longer the term, the lower your monthly payment, but you'll pay more in total interest over the life of the loan."
+  },
+  {
+    "query": "I want to see how different interest rates affect a $600,000 mortgage over 25 years. Compare rates of 3.5%, 4%, and 4.5%.",
+    "expected_tool_use": [
+      {
+        "tool_name": "loan_calculator",
+        "tool_input": {
+          "amount": 600000,
+          "termYears": 25
+        }
+      },
+      {
+        "tool_name": "recalculate_rate",
+        "tool_input": {
+          "guid": "00000000-0000-0000-0000-000000000000",
+          "newRate": 3.5
+        }
+      },
+      {
+        "tool_name": "recalculate_rate",
+        "tool_input": {
+          "guid": "00000000-0000-0000-0000-000000000000",
+          "newRate": 4
+        }
+      },
+      {
+        "tool_name": "recalculate_rate",
+        "tool_input": {
+          "guid": "00000000-0000-0000-0000-000000000000",
+          "newRate": 4.5
+        }
+      }
+    ],
+    "reference": "Here's how different interest rates affect a $600,000 mortgage over 25 years:\n\n3.5% interest rate:\n- Monthly payment: $3,000.00\n- Total interest paid: $300,000.00\n\n4.0% interest rate:\n- Monthly payment: $3,187.57\n- Total interest paid: $356,271.00\n\n4.5% interest rate:\n- Monthly payment: $3,379.88\n- Total interest paid: $413,964.00\n\nA 1% difference in rate (3.5% vs 4.5%) results in about $380 difference in monthly payment and approximately $114,000 in total interest over the loan term."
+  },
+  {
+    "query": "What's the maximum loan amount I can afford if I can pay $3,500 monthly over 30 years at 4.25% interest?",
+    "expected_tool_use": [
+      {
+        "tool_name": "bank_docs",
+        "tool_input": {
+          "query": "maximum loan amount monthly payment"
+        }
+      }
+    ],
+    "reference": "With a monthly payment capacity of $3,500, a 30-year term, and 4.25% interest rate, you could afford a maximum loan amount of approximately $710,000.\n\nThis calculation assumes:\n- Fixed interest rate throughout the loan term\n- No additional fees or insurance costs included\n- Standard amortization schedule\n\nKeep in mind that lenders typically recommend that your mortgage payment not exceed 28% of your gross monthly income, and your total debt payments not exceed 36%."
+  }
+]

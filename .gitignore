@@ -15,3 +15,8 @@ repomix-mortgage.txt
 .aider*
 .coverage
 uv.lock
+
+# ADK files
+*.evalset.json
+!tests/eval/data/*.evalset.json
+!tests/eval/data/recorded-sessions/*.evalset.json
