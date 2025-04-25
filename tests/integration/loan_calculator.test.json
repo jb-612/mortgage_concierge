@@ -1,0 +1,65 @@
+[
+  {
+    "query": "I have a property worth $500,000 and I want to make a down payment of $100,000. My annual income is $120,000 and my monthly debt payments are $1,500. I have excellent credit and medium risk tolerance.",
+    "expected_tool_use": [
+      {
+        "tool_name": "store_state_tool",
+        "tool_input": {
+          "state": {
+            "user_profile": {
+              "property_value": 500000,
+              "down_payment": 100000,
+              "annual_income": 120000,
+              "monthly_debt": 1500,
+              "credit_score": "excellent",
+              "risk_tolerance": "medium"
+            }
+          }
+        }
+      },
+      {
+        "tool_name": "calculateLoan",
+        "tool_input": {
+          "amount": 400000,
+          "termYears": 25
+        }
+      }
+    ],
+    "expected_intermediate_agent_responses": [],
+    "reference": "Thank you for providing that information. I've recorded your profile details. Based on your information, I can help you understand your mortgage options."
+  },
+  {
+    "query": "What would my monthly payment be?",
+    "expected_tool_use": [],
+    "expected_intermediate_agent_responses": [],
+    "reference": "Based on your loan amount of $400,000 for a 25-year mortgage, your estimated monthly payment would be around $2,100. This calculation uses our standard interest rate and includes principal and interest only. Property taxes, insurance, and HOA fees would be additional expenses."
+  },
+  {
+    "query": "What if I got a 4% interest rate?",
+    "expected_tool_use": [
+      {
+        "tool_name": "recalculateWithNewRate",
+        "tool_input": {
+          "guid": "__placeholder__",
+          "newRate": 4.0
+        }
+      }
+    ],
+    "expected_intermediate_agent_responses": [],
+    "reference": "With a 4% interest rate on your $400,000 loan for 25 years, your monthly payment would be approximately $2,111.00. This would result in total interest paid of about $263,000 over the life of the loan."
+  },
+  {
+    "query": "How about a 20-year mortgage?",
+    "expected_tool_use": [
+      {
+        "tool_name": "recalculateWithNewTerm",
+        "tool_input": {
+          "guid": "__placeholder__",
+          "newTermYears": 20
+        }
+      }
+    ],
+    "expected_intermediate_agent_responses": [],
+    "reference": "With a 20-year mortgage on your $400,000 loan, your monthly payment would increase to approximately $2,450.00. This higher payment would save you money in the long run, with total interest paid of about $210,000 over the life of the loan."
+  }
+]
