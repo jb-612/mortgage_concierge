@@ -21,8 +21,14 @@ optional = true
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=7.0.0"
+pytest-asyncio = ">=0.20.0"
 google-adk = { version = ">=0.1.0", extras = ["eval"] }
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+markers = [
+    "asyncio: mark a test as an asyncio test",
+]
