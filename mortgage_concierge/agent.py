@@ -30,6 +30,7 @@ from mortgage_concierge.tools.bank_docs import search_bank_docs
 from mortgage_concierge.tools.loan_tracks import list_loan_tracks
 from mortgage_concierge.tools.store_state import store_state_tool
 from mortgage_concierge.tools.openapi_tools import load_loan_calculator_api_tools
+from mortgage_concierge.tools.simulation_tools import simulate_loan_tracks
 
 # Generate OpenAPI-based tools for loan calculator endpoints
 loan_api_tools = load_loan_calculator_api_tools()
@@ -45,9 +46,10 @@ root_agent = Agent(
     instruction=AGENT_INSTRUCTION,
     tools=[
         store_state_tool,
-        search_bank_docs,   # Tool for searching bank policy documents
+        search_bank_docs,    # Tool for searching bank policy documents
         list_loan_tracks,
-        *loan_api_tools,    # OpenAPI-generated REST API tools
+        simulate_loan_tracks, # Tool for multi-track loan simulations
+        *loan_api_tools,     # OpenAPI-generated REST API tools
     ],
     output_key="last_advice",
 )
