@@ -20,3 +20,4 @@ uv.lock
 *.evalset.json
 !tests/eval/data/*.evalset.json
 !tests/eval/data/recorded-sessions/*.evalset.json
+tests/eval/data/recorded-sessions/evalset67a47d.evalset-1.json
