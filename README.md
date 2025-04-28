@@ -7,7 +7,7 @@ and surfaces available loan repayment tracks.
 
 ## Overview
 
-Borrower interactions are divided into two main phases:
+Borrower interactions are divided into four main phases:
 1. **Phase 1 – Profile Gathering**  
    The agent asks for property value, down payment, income, debts, credit score, and risk tolerance.
    After each response it stores the value in session state via the `store_state` tool.
@@ -16,6 +16,14 @@ Borrower interactions are divided into two main phases:
    The agent evaluates eligibility, calculates loan options (via `loan_calculator_tool`), 
    recalculates with different rates or terms (via `recalculate_rate_tool` and `recalculate_term_tool`),
    presents loan track options (via `list_loan_tracks`), and guides the borrower through application steps.
+3. **Phase 3 – Multi-Track Simulation**  
+   The agent can simulate complex mortgage packages with multiple loan tracks (via `simulate_loan_tracks`),
+   such as a 60/40 split between fixed and variable rate portions, creating comprehensive mortgage packages
+   with weighted average rates and combined payment calculations.
+4. **Phase 4 – Package Evaluation**  
+   The agent evaluates mortgage packages (via `evaluate_mortgage_package_tool`) based on risk assessment,
+   affordability analysis, and cost efficiency metrics, providing personalized recommendations based on
+   the borrower's financial profile and risk tolerance.
 
 At any point, for factual grounding in bank policies, the agent can call:
 - `search_bank_docs(query)` – returns snippets from ingested .txt/.md documents.
@@ -32,7 +40,9 @@ At any point, for factual grounding in bank policies, the agent can call:
 
 ### Key Components
 - **Agents**  
-  - `root_agent` (in `mortgage_concierge/agent.py`): Orchestrates the borrower profiling flow.
+  - `root_agent` (in `mortgage_concierge/agent.py`): Orchestrates the mortgage advisor workflow.
+  - `LoanSimulationAgent` (in `mortgage_concierge/sub_agents/loan_simulation/agent.py`): Specialized agent for simulating multiple loan tracks.
+  - `PackageEvaluatorAgent` (in `mortgage_concierge/sub_agents/package_evaluator/agent.py`): Specialized agent for evaluating mortgage packages.
 - **Tools**  
   - `search_bank_docs` – semantic/keyword search over ingested bank policy docs.
   - `list_loan_tracks` – loads and returns loan track configurations from JSON.
@@ -40,12 +50,14 @@ At any point, for factual grounding in bank policies, the agent can call:
   - `loan_calculator_tool` – calculates loan details and stores results in session state with GUID.
   - `recalculate_rate_tool` – recalculates loan with a new interest rate using stored GUID.
   - `recalculate_term_tool` – recalculates loan with a new term using stored GUID.
+  - `simulate_loan_tracks` – simulates multiple loan tracks and creates comprehensive mortgage packages.
+  - `evaluate_mortgage_package_tool` – evaluates mortgage packages with risk, affordability, and cost analysis.
 - **Shared Libraries**  
   - `memory_ingestion` – reads `.txt`/`.md` docs into ADK's in-memory memory service.
   - `memory_store` – global `InMemoryMemoryService` & `InMemorySessionService`.
   - `types.py` – Pydantic `BorrowerProfile` schema for session state.
 - **Prompts**  
-  - `AGENT_INSTRUCTION` defines the Phase 1 instruction template in `prompt.py`.
+  - `AGENT_INSTRUCTION` defines comprehensive instructions for all phases in `prompt.py`.
 
 ## Setup and Installation
 
@@ -167,13 +179,34 @@ uv run python -m pytest tests/unit
 python -m pytest tests/unit
 ```
 
-## Next Steps
-- **Phase 2 (In Progress):** 
+## Implementation Progress
+- **Phase 1:**
+  - ✅ Implemented structured borrower profile gathering workflow
+  - ✅ Added session state management for user profile data
+  - ✅ Integrated bank policy document retrieval
+- **Phase 2:**
   - ✅ Implemented GUID-based loan calculator API integration
   - ✅ Added session state management for calculation results
   - ✅ Implemented background calculation flow
-  - ⬜ Complete eligibility checks integration
+  - ✅ Integrated rate and term recalculation capabilities
 - **Phase 3:**
-  - **Semantic RAG:** Swap in an embeddings vector store for more robust retrieval.
-  - **Sub‑agents:** Break out eligibility, comparison, and application into specialized agents.
-  - **Enhanced UX:** Improve recommendation flow and personalized advice.
+  - ✅ Implemented LoanSimulationAgent for multi-track simulations
+  - ✅ Added support for combined fixed/variable rate packages
+  - ✅ Created simulation tool interfaces for the main agent
+  - ✅ Added weighted average calculations for package metrics
+- **Phase 4:**
+  - ✅ Implemented PackageEvaluatorAgent with comprehensive scoring system
+  - ✅ Added detailed risk assessment capabilities
+  - ✅ Created affordability analysis based on user financial profile
+  - ✅ Integrated cost efficiency evaluation and personalized recommendations
+
+## Next Steps
+- **Phase 5 - Callbacks, Artifacts & UI Enhancements:**
+  - **Artifacts:** Persist amortization tables as CSV artifacts for later retrieval
+  - **UI Enhancements:** Implement chart/table rendering for package comparisons
+  - **Callbacks:** Add request/response tracing and performance metrics
+- **Phase 6 - Full Recommendation Workflow:**
+  - **Orchestration:** Implement the complete recommendation workflow
+  - **Document Generation:** Add capability for generating application documents
+  - **Semantic RAG:** Swap in an embeddings vector store for more robust retrieval
+  - **Enhanced UX:** Further improve personalized advice based on financial profile
