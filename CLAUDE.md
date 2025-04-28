@@ -32,14 +32,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Tests to Run After Code Changes
 
-After making code changes to the loan calculator or related components:
+After making code changes to specific components:
 
+### Loan Calculator Components
 ```bash
 # Unit tests
 python -m pytest tests/unit/test_loan_calculator.py tests/unit/test_recalculate_tools.py
 
 # Integration tests
 python -m pytest tests/integration/test_loan_calculator_integration.py
+```
+
+### Sub-Agent Components
+```bash
+# Unit tests
+python -m pytest tests/unit/test_simulation_tools.py tests/unit/test_evaluation_tools.py
+```
+
+### Run All Tests
+```bash
+# All unit tests
+python -m pytest tests/unit/
+
+# All integration tests
+python -m pytest tests/integration/
 
 # Evaluation tests
 python -m pytest tests/eval/test_eval.py
@@ -78,7 +94,13 @@ python -m pytest tests/eval/test_eval.py
 - **Session State:**
   - User profile and calculation data stored in session state
   - Access via `tool_context.state` in tools
-  - Follow session state naming conventions (e.g., `loan_calculation_guid`)
+  - Follow session state naming conventions (e.g., `loan_calculation_guid`, `proposed_packages`)
+- **Sub-Agent Architecture:**
+  - Specialized agents for complex operations (LoanSimulationAgent, PackageEvaluatorAgent)
+  - Sub-agents inherit from ADK's BaseAgent class
+  - Each sub-agent has its own session and specialized tools
+  - Sub-agents wrapped as function tools in the root agent
+  - Results stored in session state for cross-agent data sharing
 - **OpenAPI Integration:**
   - Loan calculator tools generated from `mortgage_concierge/openapi/loan_calculator.yaml` spec
   - Calculator endpoints require GUID for recalculation operations
@@ -113,3 +135,8 @@ When managing calculator state, use these state keys:
 - `loan_selected_track` - Store selected loan track information
 - `loan_custom_rate` - Store any custom rate specified by user
 - `loan_custom_term` - Store any custom term requested by user
+
+When working with package simulations and evaluations, use these state keys:
+- `proposed_packages` - Dictionary of simulated mortgage packages keyed by package_id
+- `package_evaluations` - Dictionary of package evaluations keyed by evaluation_id
+- `amortization_artifacts` - Dictionary mapping calculation GUIDs to artifact IDs
