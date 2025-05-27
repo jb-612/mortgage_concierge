@@ -19,6 +19,7 @@ from mortgage_concierge.sub_agents.loan_simulation.models import (
     MortgagePackage
 )
 from mortgage_concierge.shared_libraries.constants import DEFAULT_MODEL_ID
+from mortgage_concierge.shared_libraries.memory_store import session_service
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -110,7 +111,8 @@ class LoanSimulationAgent(Agent):
         """
         try:
             # Create a new session with the provided track specifications
-            session = await self.create_session()
+            session_id = f"loan_sim_{uuid.uuid4().hex[:8]}_{int(datetime.now().timestamp())}"
+            session = session_service.create_session(app_name="mortgage_advisor", user_id="system", session_id=session_id)
             
             # Set initial session state with track specs and context info
             session.state["track_specifications"] = [spec.model_dump() for spec in track_specifications]
@@ -121,10 +123,11 @@ class LoanSimulationAgent(Agent):
             package_id = f"pkg_{uuid.uuid4().hex[:8]}"
             session.state["package_id"] = package_id
             
-            # Run the agent to process all tracks and create the package
-            response = await session.send_message(
-                "Process all loan track specifications and create a comprehensive mortgage package."
-            )
+            # Prepare input message
+            message = "Process all loan track specifications and create a comprehensive mortgage package."
+            
+            # Run the agent with the message
+            response = await self.run(session, message)
             
             # Extract the agent's response
             agent_response = response.message.content

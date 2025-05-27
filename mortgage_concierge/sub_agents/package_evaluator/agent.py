@@ -25,6 +25,7 @@ from mortgage_concierge.shared_libraries.state_helpers import (
     get_proposed_packages,
     get_package_evaluation_results
 )
+from mortgage_concierge.shared_libraries.memory_store import session_service
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -129,7 +130,8 @@ class PackageEvaluatorAgent(Agent):
             logger.info(f"Starting evaluation of package '{mortgage_package.package_id}' with {len(mortgage_package.tracks)} tracks")
             
             # Create a new session for this evaluation
-            session = await self.create_session()
+            session_id = f"eval_{uuid.uuid4().hex[:8]}_{int(datetime.now().timestamp())}"
+            session = session_service.create_session(app_name="mortgage_advisor", user_id="system", session_id=session_id)
             
             # Generate an evaluation ID with timestamp for traceability
             evaluation_id = f"eval_{uuid.uuid4().hex[:8]}_{int(datetime.now().timestamp())}"
@@ -141,10 +143,11 @@ class PackageEvaluatorAgent(Agent):
             session.state["market_rate_benchmark"] = market_rate_benchmark
             session.state["evaluation_id"] = evaluation_id
             
-            # Run the agent to evaluate the package
-            response = await session.send_message(
-                "Evaluate this mortgage package based on risk, affordability, and cost efficiency."
-            )
+            # Prepare input message
+            message = "Evaluate this mortgage package based on risk, affordability, and cost efficiency."
+            
+            # Run the agent with the message
+            response = await self.run(session, message)
             
             # Extract the agent's response
             agent_response = response.message.content
