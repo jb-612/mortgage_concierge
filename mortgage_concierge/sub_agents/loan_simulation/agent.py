@@ -11,7 +11,6 @@ from typing import List, Dict, Any, Optional, Union
 from google.adk.agents import Agent
 from google.adk.tools import FunctionTool, ToolContext
 from google.adk.runners import Runner
-from google.adk.sessions.in_memory_session_service import InMemorySessionService
 from google.adk.events import Event
 from google.genai.types import Content, Part
 from google.adk.tools.openapi_tool.openapi_spec_parser.openapi_toolset import OpenAPIToolset
@@ -145,11 +144,11 @@ class LoanSimulationAgent(Agent):
             # Create a message for the agent
             new_message = Content(parts=[Part(text=message)])
             
-            # Create a runner to execute the agent
+            # Create a runner to execute the agent - using the same session_service
             runner = Runner(
                 app_name="mortgage_advisor",
                 agent=self,
-                session_service=InMemorySessionService()
+                session_service=session_service
             )
             
             # Execute the agent with the session and message
