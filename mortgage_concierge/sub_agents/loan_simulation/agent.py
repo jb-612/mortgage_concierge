@@ -5,6 +5,7 @@ creating mortgage packages.
 import os
 import logging
 import uuid
+import json
 from datetime import datetime
 from typing import List, Dict, Any, Optional, Union
 
@@ -26,6 +27,20 @@ from mortgage_concierge.shared_libraries.memory_store import session_service
 
 # Setup logging
 logger = logging.getLogger(__name__)
+
+# Create a JSON serializer that handles datetime objects
+def json_serializable(obj):
+    """Convert an object to a JSON serializable format."""
+    if isinstance(obj, dict):
+        return {k: json_serializable(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [json_serializable(item) for item in obj]
+    elif isinstance(obj, datetime):
+        return obj.isoformat()
+    elif hasattr(obj, "model_dump"):
+        return json_serializable(obj.model_dump())
+    else:
+        return obj
 
 class LoanSimulationAgent(Agent):
     """
@@ -244,8 +259,8 @@ class LoanSimulationAgent(Agent):
                             for i in range(12)  # Just create first 12 months for simplicity
                         ]
                     
-                    # Store calculation result
-                    track_results.append(adapted_result)
+                    # Store calculation result (ensure it's JSON serializable)
+                    track_results.append(json_serializable(adapted_result))
                     
                     # Save amortization artifact if requested
                     if save_artifacts:
@@ -265,12 +280,9 @@ class LoanSimulationAgent(Agent):
                 tool_context=tool_context
             )
             
-            # Handle datetime objects in the result
+            # Make sure any datetime objects in the result are serialized to strings
             if "package" in package_result and package_result.get("status") == "ok":
-                package_data = package_result["package"]
-                # Convert timestamp to ISO format string if it's a datetime object
-                if "timestamp" in package_data and isinstance(package_data["timestamp"], datetime):
-                    package_data["timestamp"] = package_data["timestamp"].isoformat()
+                package_result["package"] = json_serializable(package_result["package"])
             
             # Use the result directly
             agent_response = package_result
@@ -284,17 +296,14 @@ class LoanSimulationAgent(Agent):
                     tool_context.state["proposed_packages"] = {}
                 
                 # Convert the package to a dict, ensuring all values are JSON-serializable
-                package_dict = package.model_dump()
-                # Convert datetime objects to ISO strings
-                if isinstance(package_dict["timestamp"], datetime):
-                    package_dict["timestamp"] = package_dict["timestamp"].isoformat()
+                package_dict = json_serializable(package.model_dump())
                 
                 # Store in session state
                 tool_context.state["proposed_packages"][package_id] = package_dict
                 
                 return {
                     "status": "ok",
-                    "package": package.model_dump()
+                    "package": json_serializable(package.model_dump())
                 }
             else:
                 return {
@@ -379,7 +388,7 @@ class LoanSimulationAgent(Agent):
             for track in mortgage_tracks:
                 track.percentage_of_total = (track.amount / total_amount) * 100 if total_amount > 0 else 0
             
-            # Create the package
+            # Create the package with string timestamp instead of datetime
             package = MortgagePackage(
                 package_id=package_id,
                 package_name=package_name,
@@ -389,14 +398,12 @@ class LoanSimulationAgent(Agent):
                 total_interest=total_interest,
                 total_repayment=total_repayment,
                 tracks=mortgage_tracks,
-                timestamp=datetime.now(),
+                timestamp=datetime.now().isoformat(),  # Convert to ISO string immediately
                 artifact_ids=artifact_ids if artifact_ids else None
             )
             
             # Make sure we convert datetime objects to ISO strings for JSON serialization
-            package_dict = package.model_dump()
-            if isinstance(package_dict["timestamp"], datetime):
-                package_dict["timestamp"] = package_dict["timestamp"].isoformat()
+            package_dict = json_serializable(package.model_dump())
             
             return {
                 "status": "ok",
