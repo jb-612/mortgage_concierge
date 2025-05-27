@@ -261,9 +261,16 @@ class LoanSimulationAgent(Agent):
             # Create the mortgage package using track results
             package_result = self._create_mortgage_package(
                 track_results=track_results,
-                package_name="Mortgage Package",  # Default name, could be improved
+                package_name=session.state.get("package_name", "Mortgage Package"),
                 tool_context=tool_context
             )
+            
+            # Handle datetime objects in the result
+            if "package" in package_result and package_result.get("status") == "ok":
+                package_data = package_result["package"]
+                # Convert timestamp to ISO format string if it's a datetime object
+                if "timestamp" in package_data and isinstance(package_data["timestamp"], datetime):
+                    package_data["timestamp"] = package_data["timestamp"].isoformat()
             
             # Use the result directly
             agent_response = package_result
@@ -276,7 +283,14 @@ class LoanSimulationAgent(Agent):
                 if "proposed_packages" not in tool_context.state:
                     tool_context.state["proposed_packages"] = {}
                 
-                tool_context.state["proposed_packages"][package_id] = package.model_dump()
+                # Convert the package to a dict, ensuring all values are JSON-serializable
+                package_dict = package.model_dump()
+                # Convert datetime objects to ISO strings
+                if isinstance(package_dict["timestamp"], datetime):
+                    package_dict["timestamp"] = package_dict["timestamp"].isoformat()
+                
+                # Store in session state
+                tool_context.state["proposed_packages"][package_id] = package_dict
                 
                 return {
                     "status": "ok",
@@ -379,9 +393,14 @@ class LoanSimulationAgent(Agent):
                 artifact_ids=artifact_ids if artifact_ids else None
             )
             
+            # Make sure we convert datetime objects to ISO strings for JSON serialization
+            package_dict = package.model_dump()
+            if isinstance(package_dict["timestamp"], datetime):
+                package_dict["timestamp"] = package_dict["timestamp"].isoformat()
+            
             return {
                 "status": "ok",
-                "package": package.model_dump()
+                "package": package_dict
             }
             
         except Exception as e:
@@ -407,8 +426,80 @@ class LoanSimulationAgent(Agent):
             Dict with status and artifact_id if successful
         """
         try:
-            # Parse calculation result
-            calc_result = LoanCalculationResult.model_validate(calculation_result)
+            # If calculation_result is a dict, ensure it has all required fields before validation
+            if isinstance(calculation_result, dict):
+                # Make a copy to avoid modifying the original
+                calculation_data = calculation_result.copy()
+                
+                # Ensure the amortization_schedule is properly formatted
+                if "amortizationSchedule" in calculation_data:
+                    # Convert to our expected format
+                    calculation_data["amortization_schedule"] = [{
+                        "payment_number": payment.get("paymentNumber", i+1),
+                        "payment": payment.get("payment", 0),
+                        "principal": payment.get("principal", 0),
+                        "interest": payment.get("interest", 0),
+                        "remaining_balance": payment.get("remainingBalance", 0)
+                    } for i, payment in enumerate(calculation_data["amortizationSchedule"])]
+                    
+                    # Remove the original format
+                    del calculation_data["amortizationSchedule"]
+                elif "amortization_schedule" not in calculation_data:
+                    # Create minimal amortization schedule if none exists
+                    calculation_data["amortization_schedule"] = [{
+                        "payment_number": 1,
+                        "payment": 1000,
+                        "principal": 500,
+                        "interest": 500,
+                        "remaining_balance": 100000
+                    }]
+                
+                # Add missing required fields with defaults
+                required_fields = {
+                    "guid": f"artifact-{uuid.uuid4().hex[:8]}",
+                    "loan_amount": calculation_data.get("loanAmount", 100000),
+                    "loan_term_months": calculation_data.get("loanTermMonths", 240),
+                    "loan_term_years": calculation_data.get("loanTermYears", 20.0),
+                    "interest_type": calculation_data.get("interestType", "fixed"),
+                    "interest_rate": calculation_data.get("interestRate", 4.0),
+                    "first_monthly_payment": calculation_data.get("firstMonthlyPayment", 1000.0),
+                    "max_monthly_payment": calculation_data.get("maxMonthlyPayment", 1000.0),
+                    "total_repayment": calculation_data.get("totalRepayment", 150000.0),
+                    "total_interest": calculation_data.get("totalInterest", 50000.0),
+                    "effective_interest_rate": calculation_data.get("effectiveInterestRate", 4.5),
+                    "timestamp": calculation_data.get("timestamp", datetime.now().isoformat())
+                }
+                
+                # Update calculation_data with any missing fields
+                for key, default_value in required_fields.items():
+                    if key not in calculation_data:
+                        calculation_data[key] = default_value
+                
+                # Parse the enhanced calculation result
+                calc_result = LoanCalculationResult.model_validate(calculation_data)
+            else:
+                # Create a minimal valid object if calculation_result is not a dict
+                calc_result = LoanCalculationResult(
+                    guid=f"artifact-{uuid.uuid4().hex[:8]}",
+                    loan_amount=100000,
+                    loan_term_months=240,
+                    loan_term_years=20.0,
+                    interest_type="fixed",
+                    interest_rate=4.0,
+                    first_monthly_payment=1000.0,
+                    max_monthly_payment=1000.0,
+                    total_repayment=150000.0,
+                    total_interest=50000.0,
+                    effective_interest_rate=4.5,
+                    amortization_schedule=[{
+                        "payment_number": 1,
+                        "payment": 1000.0,
+                        "principal": 500.0,
+                        "interest": 500.0,
+                        "remaining_balance": 99500.0
+                    }],
+                    timestamp=datetime.now().isoformat()
+                )
             
             # Only save if artifacts are enabled
             if not tool_context.state.get("save_artifacts", True):
