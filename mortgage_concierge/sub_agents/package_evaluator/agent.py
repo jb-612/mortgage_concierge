@@ -10,6 +10,9 @@ from datetime import datetime
 
 from google.adk.agents import Agent
 from google.adk.tools import FunctionTool, ToolContext
+from google.adk.runners import Runner
+from google.adk.sessions.in_memory_session_service import InMemorySessionService
+from google.genai.types import Content, Part
 
 from mortgage_concierge.sub_agents.loan_simulation.models import MortgagePackage
 from mortgage_concierge.sub_agents.package_evaluator.models import (
@@ -145,11 +148,38 @@ class PackageEvaluatorAgent(Agent):
             # Prepare input message
             message = "Evaluate this mortgage package based on risk, affordability, and cost efficiency."
             
-            # Run the agent with the message
-            response = await self.run(session, message)
+            # Create a message for the agent
+            new_message = Content(parts=[Part(text=message)])
             
-            # Extract the agent's response
-            agent_response = response.message.content
+            # Create a runner to execute the agent
+            runner = Runner(
+                app_name="mortgage_advisor",
+                agent=self,
+                session_service=InMemorySessionService()
+            )
+            
+            # Execute the agent with the session and message
+            events = []
+            async for event in runner.run_async(
+                user_id="system",
+                session_id=session_id,
+                new_message=new_message
+            ):
+                if not event.partial and event.author == self.name:
+                    events.append(event)
+            
+            # Extract the agent's response from the last event
+            agent_response = {}
+            if events:
+                last_event = events[-1]
+                if last_event.content and last_event.content.parts:
+                    for part in last_event.content.parts:
+                        if hasattr(part, 'text') and part.text:
+                            try:
+                                import json
+                                agent_response = json.loads(part.text)
+                            except:
+                                agent_response = {'status': 'error', 'error_message': 'Failed to parse agent response'}
             
             # Check if the evaluation was successful
             if "evaluation" in agent_response:
