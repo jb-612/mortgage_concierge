@@ -4,12 +4,17 @@ Tools for evaluating mortgage packages using the PackageEvaluatorAgent.
 import logging
 from typing import Dict, Any, Optional, List, Union
 
-from google.adk.tools import ToolContext
+from google.adk.tools import FunctionTool, ToolContext
 from pydantic import BaseModel, Field
 
 from mortgage_concierge.sub_agents.package_evaluator import PackageEvaluatorAgent
 from mortgage_concierge.sub_agents.package_evaluator.models import EvaluationCriteria
 from mortgage_concierge.sub_agents.loan_simulation.models import MortgagePackage
+from mortgage_concierge.shared_libraries.state_helpers import (
+    get_proposed_packages,
+    ensure_session_state,
+    get_package_evaluation_results
+)
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -69,19 +74,23 @@ async def evaluate_mortgage_package_tool(
                 "error_message": "Risk tolerance must be 'low', 'moderate', or 'high'"
             }
         
-        # Get the mortgage package from session state
-        if "proposed_packages" not in tool_context.state:
+        # Get the mortgage package from session state using our helper function
+        packages = get_proposed_packages(tool_context)
+        if not packages:
             return {
                 "status": "error",
                 "error_message": "No mortgage packages found in session state"
             }
             
-        package_data = tool_context.state["proposed_packages"].get(package_id)
+        package_data = packages.get(package_id)
         if not package_data:
+            logger.warning(f"Package '{package_id}' not found in state. Available packages: {list(packages.keys())}")
             return {
                 "status": "error",
-                "error_message": f"Package with ID '{package_id}' not found"
+                "error_message": f"Package with ID '{package_id}' not found in session state"
             }
+            
+        logger.info(f"Retrieved package '{package_id}' from session state for evaluation")
             
         # Convert to MortgagePackage object
         package = MortgagePackage.model_validate(package_data)
@@ -105,6 +114,14 @@ async def evaluate_mortgage_package_tool(
             market_rate_benchmark=market_rate_benchmark
         )
         
+        # If successful, store the evaluation in session state
+        if evaluation_result.get("status") == "ok" and "evaluation" in evaluation_result:
+            evaluation_data = evaluation_result["evaluation"]
+            evaluations = get_package_evaluation_results(tool_context)
+            evaluations[f"eval_{package_id}"] = evaluation_data
+            tool_context.state["package_evaluations"] = evaluations
+            logger.info(f"Saved evaluation for package '{package_id}' to session state")
+        
         # Return the evaluation results
         return evaluation_result
         
@@ -114,3 +131,7 @@ async def evaluate_mortgage_package_tool(
             "status": "error",
             "error_message": f"Failed to evaluate mortgage package: {str(e)}"
         }
+
+# Export the tool
+evaluate_mortgage_package_tool.__name__ = "evaluate_mortgage_package"
+evaluate_mortgage_package = FunctionTool(evaluate_mortgage_package_tool)

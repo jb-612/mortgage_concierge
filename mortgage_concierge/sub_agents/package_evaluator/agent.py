@@ -6,6 +6,7 @@ import os
 import logging
 import uuid
 from typing import List, Dict, Any, Optional
+from datetime import datetime
 
 from google.adk.agents import Agent
 from google.adk.tools import FunctionTool, ToolContext
@@ -19,6 +20,11 @@ from mortgage_concierge.sub_agents.package_evaluator.models import (
     PackageEvaluation
 )
 from mortgage_concierge.shared_libraries.constants import DEFAULT_MODEL_ID
+from mortgage_concierge.shared_libraries.state_helpers import (
+    ensure_session_state,
+    get_proposed_packages,
+    get_package_evaluation_results
+)
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -112,17 +118,27 @@ class PackageEvaluatorAgent(Agent):
             Dictionary with status and either the evaluation or error message
         """
         try:
+            # Validate that tool_context exists
+            if tool_context is None:
+                return {
+                    "status": "error",
+                    "error_message": "Tool context is required for state management"
+                }
+            
+            # Log the evaluation request
+            logger.info(f"Starting evaluation of package '{mortgage_package.package_id}' with {len(mortgage_package.tracks)} tracks")
+            
             # Create a new session for this evaluation
             session = await self.create_session()
+            
+            # Generate an evaluation ID with timestamp for traceability
+            evaluation_id = f"eval_{uuid.uuid4().hex[:8]}_{int(datetime.now().timestamp())}"
             
             # Set initial session state with package and criteria
             session.state["mortgage_package"] = mortgage_package.model_dump()
             session.state["evaluation_criteria"] = evaluation_criteria.model_dump()
             session.state["parent_session_id"] = tool_context.session_id
             session.state["market_rate_benchmark"] = market_rate_benchmark
-            
-            # Generate an evaluation ID
-            evaluation_id = f"eval_{uuid.uuid4().hex[:8]}"
             session.state["evaluation_id"] = evaluation_id
             
             # Run the agent to evaluate the package
@@ -135,22 +151,28 @@ class PackageEvaluatorAgent(Agent):
             
             # Check if the evaluation was successful
             if "evaluation" in agent_response:
+                # Validate and convert the evaluation
                 evaluation = PackageEvaluation.model_validate(agent_response["evaluation"])
                 
-                # Store the evaluation in the parent session state
-                if "package_evaluations" not in tool_context.state:
-                    tool_context.state["package_evaluations"] = {}
+                # Store the evaluation in the parent session state using our helper
+                evaluations = get_package_evaluation_results(tool_context)
+                evaluations[evaluation_id] = evaluation.model_dump()
+                tool_context.state["package_evaluations"] = evaluations
                 
-                tool_context.state["package_evaluations"][evaluation_id] = evaluation.model_dump()
+                # Log success
+                logger.info(f"Successfully evaluated package '{mortgage_package.package_id}' (evaluation ID: {evaluation_id})")
                 
                 return {
                     "status": "ok",
                     "evaluation": evaluation.model_dump()
                 }
             else:
+                # Handle error case
+                error_msg = agent_response.get("error_message", "Unknown error in package evaluation")
+                logger.error(f"Evaluation failed: {error_msg}")
                 return {
                     "status": "error",
-                    "error_message": agent_response.get("error_message", "Unknown error in package evaluation")
+                    "error_message": error_msg
                 }
         
         except Exception as e:
@@ -524,6 +546,7 @@ class PackageEvaluatorAgent(Agent):
             # Get package and criteria from session state
             package_data = tool_context.state.get("mortgage_package", {})
             criteria_data = tool_context.state.get("evaluation_criteria", {})
+            evaluation_id = tool_context.state.get("evaluation_id")
             
             # Convert to objects
             package = MortgagePackage.model_validate(package_data)
@@ -665,10 +688,12 @@ class PackageEvaluatorAgent(Agent):
                 if "Consider mortgage insurance to protect against payment difficulties" not in recommendations and affordability.affordability_score < 70:
                     recommendations.append("Consider mortgage insurance to protect against payment difficulties")
             
-            # Create the package evaluation
+            # Create the package evaluation with evaluation_id for tracking
             package_evaluation = PackageEvaluation(
                 package_id=package.package_id,
                 package_name=package.package_name,
+                evaluation_id=evaluation_id,
+                evaluation_timestamp=datetime.now(),
                 risk_assessment=risk,
                 affordability_assessment=affordability,
                 cost_efficiency_assessment=cost_efficiency,
@@ -678,6 +703,9 @@ class PackageEvaluatorAgent(Agent):
                 recommendations=recommendations,
                 suitable_for_profiles=suitable_for_profiles
             )
+            
+            # Log the evaluation completion
+            logger.info(f"Created package evaluation for '{package.package_id}' with overall score {overall_score:.1f}")
             
             return {
                 "status": "ok",
