@@ -68,19 +68,32 @@ class LoanSimulationAgent(Agent):
             IMPORTANT GUIDELINES:
             
             - Process each track specification in sequence
-            - For each track, call calculateLoan with the specified amount and term
-            - If a custom rate is specified, call recalculateWithNewRate using the calculation GUID
-            - Ensure all API calls are properly error-handled
-            - Generate a unique package_id for each mortgage package
-            - Store the resulting package in the session state for the main agent to access
-            - When storing artifacts, use descriptive names that include the track type
+            - For each track, first call calculateLoan with the track's amount and term_years:
+              ```
+              calculation_result = calculateLoan(amount=track['amount'], termYears=track['term_years'])
+              ```
+            - Check that the calculation was successful:
+              ```
+              if calculation_result['status'] == 'ok' and 'data' in calculation_result:
+                  calculation_data = calculation_result['data']
+                  guid = calculation_data['guid']
+              ```
+            - If a custom_rate is specified and is different from the default rate, call recalculateWithNewRate:
+              ```
+              if 'custom_rate' in track and track['custom_rate'] is not None:
+                  recalc_result = recalculateWithNewRate(guid=guid, newRate=track['custom_rate'])
+                  if recalc_result['status'] == 'ok':
+                      calculation_data = recalc_result['data']
+              ```
+            - Collect all calculation_data objects into a list and pass to _create_mortgage_package
+            - Store detailed amortization tables as artifacts with _save_amortization_artifact when save_artifacts is True
             
             TOOL INSTRUCTIONS:
             
-            - calculateLoan: Initial calculation for each track
-            - recalculateWithNewRate: Only use when custom_rate is specified
-            - _create_mortgage_package: After all calculations are done, create the final package
-            - _save_amortization_artifact: Store large amortization tables as artifacts when needed
+            - calculateLoan: Call with (amount, termYears) to get initial calculation and GUID
+            - recalculateWithNewRate: Call with (guid, newRate) to update calculation with custom rate
+            - _create_mortgage_package: Call with list of calculation results to create package
+            - _save_amortization_artifact: Call with calculation result to save amortization table as artifact
             
             YOUR OUTPUT FORMAT:
             
