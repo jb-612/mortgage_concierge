@@ -117,7 +117,6 @@ class LoanSimulationAgent(Agent):
             # Set initial session state with track specs and context info
             session.state["track_specifications"] = [spec.model_dump() for spec in track_specifications]
             session.state["save_artifacts"] = save_artifacts
-            session.state["parent_session_id"] = tool_context.session_id
             
             # Generate a package ID that will be used for the final mortgage package
             package_id = f"pkg_{uuid.uuid4().hex[:8]}"

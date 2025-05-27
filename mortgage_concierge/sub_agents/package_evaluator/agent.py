@@ -139,7 +139,6 @@ class PackageEvaluatorAgent(Agent):
             # Set initial session state with package and criteria
             session.state["mortgage_package"] = mortgage_package.model_dump()
             session.state["evaluation_criteria"] = evaluation_criteria.model_dump()
-            session.state["parent_session_id"] = tool_context.session_id
             session.state["market_rate_benchmark"] = market_rate_benchmark
             session.state["evaluation_id"] = evaluation_id
             
