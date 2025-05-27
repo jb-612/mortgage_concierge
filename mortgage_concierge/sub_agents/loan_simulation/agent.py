@@ -176,8 +176,40 @@ class LoanSimulationAgent(Agent):
                         if recalc_result.get("status") == "ok" and "data" in recalc_result:
                             calculation_data = recalc_result["data"]
                     
+                    # We need to convert API response to our expected format
+                    # Map the API response fields to our model fields
+                    adapted_result = {
+                        "guid": calculation_data.get("guid"),
+                        "loan_amount": calculation_data.get("loanAmount"),
+                        "loan_term_months": calculation_data.get("loanTermMonths"),
+                        "loan_term_years": calculation_data.get("loanTermYears"),
+                        "interest_type": calculation_data.get("interestType"),
+                        "interest_rate": calculation_data.get("interestRate"),
+                        "first_monthly_payment": calculation_data.get("firstMonthlyPayment"),
+                        "max_monthly_payment": calculation_data.get("maxMonthlyPayment"),
+                        "total_repayment": calculation_data.get("totalRepayment"),
+                        "total_interest": calculation_data.get("totalInterest"),
+                        "effective_interest_rate": calculation_data.get("effectiveInterestRate"),
+                        "timestamp": calculation_data.get("timestamp"),
+                        "track_type": track_spec.get("track_type"),
+                        "track_name": track_spec.get("track_name")
+                    }
+                    
+                    # Convert amortization_schedule to expected format
+                    if "amortizationSchedule" in calculation_data:
+                        adapted_result["amortization_schedule"] = [
+                            {
+                                "payment_number": payment.get("paymentNumber"),
+                                "payment": payment.get("payment"),
+                                "principal": payment.get("principal"),
+                                "interest": payment.get("interest"),
+                                "remaining_balance": payment.get("remainingBalance")
+                            }
+                            for payment in calculation_data.get("amortizationSchedule", [])
+                        ]
+                    
                     # Store calculation result
-                    track_results.append(calculation_data)
+                    track_results.append(adapted_result)
                     
                     # Save amortization artifact if requested
                     if save_artifacts:
