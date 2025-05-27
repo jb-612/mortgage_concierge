@@ -10,7 +10,7 @@ from typing import List, Dict, Any, Optional, Union
 
 from google.adk.agents import Agent
 from google.adk.tools import FunctionTool, ToolContext
-from google.adk.runners import Runner
+# Direct execution without Runner
 from google.adk.events import Event
 from google.genai.types import Content, Part
 from google.adk.tools.openapi_tool.openapi_spec_parser.openapi_toolset import OpenAPIToolset
@@ -141,38 +141,64 @@ class LoanSimulationAgent(Agent):
             # Prepare input message
             message = "Process all loan track specifications and create a comprehensive mortgage package."
             
-            # Create a message for the agent
-            new_message = Content(parts=[Part(text=message)])
+            # Skip creating a new Runner and directly simulate the loan tracks
+            # First, extract the track specs from session state
+            track_specs = session.state.get("track_specifications", [])
+            save_artifacts = session.state.get("save_artifacts", True)
+            package_id = session.state.get("package_id", f"pkg_{uuid.uuid4().hex[:8]}")
             
-            # Create a runner to execute the agent - using the same session_service
-            runner = Runner(
-                app_name="mortgage_advisor",
-                agent=self,
-                session_service=session_service
+            # Process each track using calculator tools directly
+            track_results = []
+            
+            for i, track_spec in enumerate(track_specs):
+                try:
+                    # Extract track data
+                    amount = track_spec.get("amount")
+                    term_years = track_spec.get("term_years")
+                    custom_rate = track_spec.get("custom_rate")
+                    
+                    # Call calculate loan directly
+                    from mortgage_concierge.tools.loan_calculator import _calculate_loan_impl
+                    calc_result = _calculate_loan_impl(amount=amount, termYears=term_years, tool_context=tool_context)
+                    
+                    if calc_result.get("status") != "ok" or "data" not in calc_result:
+                        raise ValueError(f"Failed to calculate loan for track {i+1}: {calc_result.get('error_message', 'Unknown error')}")
+                    
+                    # Get calculation data and GUID
+                    calculation_data = calc_result["data"]
+                    guid = calculation_data["guid"]
+                    
+                    # If custom rate is specified, recalculate with new rate
+                    if custom_rate is not None and abs(custom_rate - calculation_data.get("interest_rate", 0)) > 0.01:
+                        from mortgage_concierge.tools.loan_calculator import _recalculate_with_new_rate_impl
+                        recalc_result = _recalculate_with_new_rate_impl(guid=guid, newRate=custom_rate, tool_context=tool_context)
+                        
+                        if recalc_result.get("status") == "ok" and "data" in recalc_result:
+                            calculation_data = recalc_result["data"]
+                    
+                    # Store calculation result
+                    track_results.append(calculation_data)
+                    
+                    # Save amortization artifact if requested
+                    if save_artifacts:
+                        self._save_amortization_artifact(calculation_data, tool_context)
+                        
+                except Exception as e:
+                    logger.exception(f"Error processing track {i+1}")
+                    return {
+                        "status": "error",
+                        "error_message": f"Failed to process track {i+1}: {str(e)}"
+                    }
+            
+            # Create the mortgage package using track results
+            package_result = self._create_mortgage_package(
+                track_results=track_results,
+                package_name="Mortgage Package",  # Default name, could be improved
+                tool_context=tool_context
             )
             
-            # Execute the agent with the session and message
-            events = []
-            async for event in runner.run_async(
-                user_id="system",
-                session_id=session_id,
-                new_message=new_message
-            ):
-                if not event.partial and event.author == self.name:
-                    events.append(event)
-            
-            # Extract the agent's response from the last event
-            agent_response = {}
-            if events:
-                last_event = events[-1]
-                if last_event.content and last_event.content.parts:
-                    for part in last_event.content.parts:
-                        if hasattr(part, 'text') and part.text:
-                            try:
-                                import json
-                                agent_response = json.loads(part.text)
-                            except:
-                                agent_response = {'status': 'error', 'error_message': 'Failed to parse agent response'}
+            # Use the result directly
+            agent_response = package_result
             
             # Check if the simulation was successful
             if "package" in agent_response:

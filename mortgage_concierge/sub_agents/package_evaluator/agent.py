@@ -10,7 +10,7 @@ from datetime import datetime
 
 from google.adk.agents import Agent
 from google.adk.tools import FunctionTool, ToolContext
-from google.adk.runners import Runner
+# Direct execution without Runner
 from google.genai.types import Content, Part
 
 from mortgage_concierge.sub_agents.loan_simulation.models import MortgagePackage
@@ -147,38 +147,46 @@ class PackageEvaluatorAgent(Agent):
             # Prepare input message
             message = "Evaluate this mortgage package based on risk, affordability, and cost efficiency."
             
-            # Create a message for the agent
-            new_message = Content(parts=[Part(text=message)])
+            # Skip creating a new Runner and directly evaluate the package
+            # Extract data from session state
+            package_data = session.state.get("mortgage_package", {})
+            criteria_data = session.state.get("evaluation_criteria", {})
+            evaluation_id = session.state.get("evaluation_id")
+            market_rate_benchmark = session.state.get("market_rate_benchmark")
             
-            # Create a runner to execute the agent - using the same session_service
-            runner = Runner(
-                app_name="mortgage_advisor",
-                agent=self,
-                session_service=session_service
-            )
-            
-            # Execute the agent with the session and message
-            events = []
-            async for event in runner.run_async(
-                user_id="system",
-                session_id=session_id,
-                new_message=new_message
-            ):
-                if not event.partial and event.author == self.name:
-                    events.append(event)
-            
-            # Extract the agent's response from the last event
-            agent_response = {}
-            if events:
-                last_event = events[-1]
-                if last_event.content and last_event.content.parts:
-                    for part in last_event.content.parts:
-                        if hasattr(part, 'text') and part.text:
-                            try:
-                                import json
-                                agent_response = json.loads(part.text)
-                            except:
-                                agent_response = {'status': 'error', 'error_message': 'Failed to parse agent response'}
+            try:
+                # Perform risk assessment
+                risk_result = self._evaluate_risk(tool_context)
+                if risk_result.get("status") != "ok" or "risk_assessment" not in risk_result:
+                    raise ValueError(f"Failed to evaluate risk: {risk_result.get('error_message', 'Unknown error')}")
+                
+                # Perform affordability assessment
+                affordability_result = self._evaluate_affordability(tool_context)
+                if affordability_result.get("status") != "ok" or "affordability_assessment" not in affordability_result:
+                    raise ValueError(f"Failed to evaluate affordability: {affordability_result.get('error_message', 'Unknown error')}")
+                
+                # Perform cost efficiency assessment
+                cost_efficiency_result = self._evaluate_cost_efficiency(tool_context)
+                if cost_efficiency_result.get("status") != "ok" or "cost_efficiency_assessment" not in cost_efficiency_result:
+                    raise ValueError(f"Failed to evaluate cost efficiency: {cost_efficiency_result.get('error_message', 'Unknown error')}")
+                
+                # Create final evaluation
+                final_result = self._create_package_evaluation(
+                    risk_assessment=risk_result["risk_assessment"],
+                    affordability_assessment=affordability_result["affordability_assessment"],
+                    cost_efficiency_assessment=cost_efficiency_result["cost_efficiency_assessment"],
+                    tool_context=tool_context
+                )
+                
+                # Use the result directly
+                agent_response = final_result
+                
+            except Exception as e:
+                logger.exception("Error in direct package evaluation")
+                agent_response = {
+                    "status": "error",
+                    "error_message": f"Failed to evaluate package: {str(e)}"
+                }
             
             # Check if the evaluation was successful
             if "evaluation" in agent_response:
