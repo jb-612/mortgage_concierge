@@ -158,8 +158,8 @@ class LoanSimulationAgent(Agent):
                     custom_rate = track_spec.get("custom_rate")
                     
                     # Call calculate loan directly
-                    from mortgage_concierge.tools.loan_calculator import _calculate_loan_impl
-                    calc_result = _calculate_loan_impl(amount=amount, termYears=term_years, tool_context=tool_context)
+                    from mortgage_concierge.tools.loan_calculator import loan_calculator_tool
+                    calc_result = loan_calculator_tool(amount=amount, termYears=term_years, tool_context=tool_context)
                     
                     if calc_result.get("status") != "ok" or "data" not in calc_result:
                         raise ValueError(f"Failed to calculate loan for track {i+1}: {calc_result.get('error_message', 'Unknown error')}")
@@ -170,8 +170,8 @@ class LoanSimulationAgent(Agent):
                     
                     # If custom rate is specified, recalculate with new rate
                     if custom_rate is not None and abs(custom_rate - calculation_data.get("interest_rate", 0)) > 0.01:
-                        from mortgage_concierge.tools.loan_calculator import _recalculate_with_new_rate_impl
-                        recalc_result = _recalculate_with_new_rate_impl(guid=guid, newRate=custom_rate, tool_context=tool_context)
+                        from mortgage_concierge.tools.loan_calculator import recalculate_rate_tool
+                        recalc_result = recalculate_rate_tool(guid=guid, newRate=custom_rate, tool_context=tool_context)
                         
                         if recalc_result.get("status") == "ok" and "data" in recalc_result:
                             calculation_data = recalc_result["data"]
