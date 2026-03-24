@@ -1,0 +1,18 @@
+graph LR
+    A[User / Chat UI] <-->|SSE/REST| B(ADK API Server)
+    B -->|ADK Run| C{Root Agent}
+    C -->|Tool Call| D[search_bank_docs]
+    C -->|Tool Call| E[list_loan_tracks]
+    C -->|Tool Call| F[store_state_tool]
+    C -->|Tool Call| G[OpenAPI Tools]
+    C -->|Tool Call| H[simulate_loan_tracks]
+    C -->|Tool Call| I[evaluate_mortgage_package]
+    H -->|wraps| J[LoanSimulationAgent]
+    I -->|wraps| K[PackageEvaluatorAgent]
+    J -->|calls| G
+    D --> L[(InMemoryMemoryService)]
+    G -->|REST| M((Calculator Service))
+
+    style C fill:#f9f,stroke:#333,stroke-width:2px
+    style J fill:#bbf,stroke:#333
+    style K fill:#bbf,stroke:#333

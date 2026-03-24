@@ -186,7 +186,7 @@ async def test_evaluate_mortgage_package_invalid_package_id():
     )
     
     assert result["status"] == "error"
-    assert "not found" in result["error_message"]
+    assert "No mortgage packages found in session state" in result["error_message"]
 
 
 @pytest.mark.asyncio

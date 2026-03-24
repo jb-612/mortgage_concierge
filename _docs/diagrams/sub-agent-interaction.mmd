@@ -1,0 +1,38 @@
+sequenceDiagram
+    participant User
+    participant Root as Root Agent
+    participant Sim as LoanSimulationAgent
+    participant Eval as PackageEvaluatorAgent
+    participant Calc as Calculator API
+    participant State as Session State
+
+    User->>Root: "Simulate a 60/40 split package"
+    Root->>State: Read user_profile, loan_initial_results
+    Root->>Root: Call simulate_loan_tracks wrapper
+
+    activate Sim
+    Root->>Sim: track_specifications, tool_context
+    Sim->>Sim: Create internal session
+    loop For each track
+        Sim->>Calc: calculateLoan(track params)
+        Calc-->>Sim: calculation result + GUID
+    end
+    Sim->>Sim: Compute weighted averages
+    Sim->>State: Write proposed_packages[package_id]
+    Sim->>State: Write amortization_artifacts[guid]
+    Sim-->>Root: MortgagePackage result
+    deactivate Sim
+
+    User->>Root: "Evaluate this package"
+    Root->>State: Read proposed_packages[package_id]
+    Root->>Root: Call evaluate_mortgage_package wrapper
+
+    activate Eval
+    Root->>Eval: mortgage_package, evaluation_criteria
+    Eval->>Eval: Create internal session
+    Eval->>Eval: Assess risk, affordability, cost
+    Eval->>State: Write package_evaluations[eval_id]
+    Eval-->>Root: PackageEvaluation result
+    deactivate Eval
+
+    Root-->>User: Recommendation with scores

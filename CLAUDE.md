@@ -110,6 +110,8 @@ python -m pytest tests/eval/test_eval.py
   - ADK Evaluation tests in tests/eval/ (using the ADK evaluation framework)
 
 ## Code Style Guidelines
+- **Cyclomatic complexity cap**: CC <= 5 per function (enforced by `radon` hook; report violations during code review)
+- **Auto-formatting**: `ruff format` + `ruff check --fix` (enforced by PostToolUse hook on every Edit/Write)
 - Use Python 3.11+ features and typing
 - Use uv for dependency management and virtual environments
 - Import order: standard lib → third-party → local modules (separated by blank lines)
@@ -140,3 +142,95 @@ When working with package simulations and evaluations, use these state keys:
 - `proposed_packages` - Dictionary of simulated mortgage packages keyed by package_id
 - `package_evaluations` - Dictionary of package evaluations keyed by evaluation_id
 - `amortization_artifacts` - Dictionary mapping calculation GUIDs to artifact IDs
+
+## Development Workflow
+
+All features follow a mandatory gated sequence. Do not skip gates.
+
+1. **Feature Spec (GATE)** — `/feature-spec` creates `.workitems/PNN-FNN-<name>/`
+2. **Design Review (GATE)** — `/design-review`, APPROVED verdict required
+3. **Task Breakdown** — `/task-breakdown`, each task tagged [TDD] or [Eval-DD]
+4. **Implementation**:
+   - TDD tasks: `/tdd-task` — RED→GREEN→REFACTOR with 3-agent separation
+   - Eval-DD tasks: `/eval-baseline` first, then `/prompt-tune`
+5. **Code Review (GATE)** — `/code-review`, LGTM required
+6. **Commit** — `/commit` with `Refs: PNN-FNN-TNN` traceability
+
+### Exceptions
+- Bug fixes may skip Feature Spec if referencing an existing workitem
+- Documentation-only changes may skip Design Review
+- Test-only changes may skip Design Review but must reference a workitem
+
+## Quality Gates
+
+### Automated (enforced by hooks)
+- **Formatting**: `ruff format` — auto-applied after every Edit/Write
+- **Linting**: `ruff check --fix` — auto-fixable issues resolved after every Edit/Write
+- **Complexity**: `radon cc -s -n C` — functions with CC > 5 are blocked
+- **Safety**: Dangerous commands (rm, sudo, force-push) blocked by hook
+
+### Manual (enforced by skills)
+- Tests must pass before commit (`uv run python -m pytest tests/unit/`)
+- Eval scores must not regress below baseline
+- No secrets in staged files
+- Workitem must exist for production code changes
+
+## ADK-Specific Conventions
+
+### Prompt Engineering
+Changes to agent instructions follow Eval-DD:
+1. Capture eval baseline with `/eval-baseline`
+2. Form hypothesis about expected behavioral improvement
+3. Modify prompt (`prompt.py` or sub-agent instruction)
+4. Run evals, compare scores against baseline
+5. Accept only if scores improve or hold steady
+
+### Eval Conventions
+- Evalset format: JSON array of `{query, expected_tool_use, reference}`
+- Thresholds: `tool_trajectory_avg_score >= 0.8`, `response_match_score >= 0.7`
+- New behavioral features require new evalset entries
+- NEVER lower thresholds without explicit justification
+
+## Adversarial Testing
+
+Use `/adversary <mode>` to stress-test the agent:
+- `prompt-injection` — attempts to override instructions or extract system prompt
+- `edge-case-borrower` — extreme financial profiles
+- `conversation-stress` — rapid topic switching, contradictory requests
+- `hallucination-probe` — requests for products not in knowledge base
+
+Run adversarial suite after prompt changes. Record failures as new evalset entries.
+
+## Workitem Structure
+
+```
+.workitems/
+├── PLAN.md                       # Master feature checklist
+└── PNN-FNN-<feature_name>/
+    ├── design.md                 # Feature spec (APPROVED required)
+    ├── tasks.md                  # Atomic tasks ([TDD] or [Eval-DD])
+    └── eval-baseline.json        # Eval scores before changes
+```
+
+Naming: PNN=phase, FNN=feature, TNN=task. Example: P01-F02-T03.
+
+## Available Skills
+
+| Skill | Description |
+|-------|-------------|
+| `/feature-spec` | Create workitem folder with design and task templates |
+| `/design-review` | Review design for completeness and ADK compliance |
+| `/task-breakdown` | Decompose feature into atomic TDD/Eval-DD tasks |
+| `/tdd-task` | Execute TDD RED-GREEN-REFACTOR with 3 agents |
+| `/eval-baseline` | Capture ADK eval scores as regression baseline |
+| `/prompt-tune` | Iterative prompt engineering with eval comparison |
+| `/add-tool` | Scaffold new ADK tool with full TDD lifecycle |
+| `/design-agent` | Design and implement new sub-agent |
+| `/code-review` | Three-pass code review |
+| `/commit` | Conventional commit with workitem traceability |
+| `/conversation-designer` | Design conversation flows and state transitions |
+| `/knowledge-curator` | Manage knowledge base documents |
+| `/state-architect` | Audit and design session state contracts |
+| `/eval-analyst` | Analyze eval results and identify failure patterns |
+| `/adversary` | Adversarial testing with autoresearch-inspired loop |
+| `/pdf-export` | Generate PDF from Markdown with Mermaid diagram pre-rendering |

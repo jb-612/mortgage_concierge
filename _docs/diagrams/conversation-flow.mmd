@@ -1,0 +1,39 @@
+stateDiagram-v2
+    [*] --> Phase1_Profiling
+
+    state Phase1_Profiling {
+        [*] --> CollectInfo
+        CollectInfo --> StoreProfile: store_state_tool
+        StoreProfile --> ProfileComplete
+    }
+
+    Phase1_Profiling --> Phase2_Calculation
+
+    state Phase2_Calculation {
+        [*] --> InitialCalc
+        InitialCalc --> CalcResults: calculateLoan
+        CalcResults --> SelectTrack
+        SelectTrack --> Recalculate: recalculateWithNewRate / recalculateWithNewTerm
+        Recalculate --> CalcResults
+        CalcResults --> CalcComplete
+    }
+
+    Phase2_Calculation --> Phase3_Simulation
+
+    state Phase3_Simulation {
+        [*] --> ListTracks
+        ListTracks --> AvailableTracks: list_loan_tracks
+        AvailableTracks --> ConfigurePackage
+        ConfigurePackage --> SimulatePackage: simulate_loan_tracks
+        SimulatePackage --> PackageReady
+    }
+
+    Phase3_Simulation --> Phase4_Evaluation
+
+    state Phase4_Evaluation {
+        [*] --> SetCriteria
+        SetCriteria --> EvaluatePackage: evaluate_mortgage_package
+        EvaluatePackage --> ReviewResults
+        ReviewResults --> ComparePackages
+        ReviewResults --> [*]
+    }
