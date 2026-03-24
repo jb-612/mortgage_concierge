@@ -1,15 +1,12 @@
 # Work Items
 
-Structured planning artifacts for the mortgage concierge agent. Created before implementation begins.
+Structured planning artifacts for the mortgage concierge agent.
 
 ## Naming Convention
 
 Two-level hierarchy: `PNN/FNN-<snake_case_name>/`
 - `PNN/` = Phase directory (P01 = Core, P02 = Quality, P03 = Hardening, P04 = Features)
 - `FNN-name/` = Feature folder within phase
-
-Reserved directories:
-- `_templates/` = workitem folder templates
 
 Examples: `P01/F01-borrower_profiling/`, `P04/F02-package_comparison/`
 
@@ -18,10 +15,36 @@ Examples: `P01/F01-borrower_profiling/`, `P04/F02-package_comparison/`
 | File | Purpose | Created By |
 |------|---------|------------|
 | `design.md` | Conversation flow, tool interface, state contract, eval strategy | Planner |
-| `user_stories.md` | Borrower-facing scenarios with conversation examples | Planner |
-| `tasks.md` | Atomic tasks tagged `[TDD]` or `[Eval-DD]` with status tracking | Planner |
+| `user_stories.md` | Borrower scenarios with eval mapping per criterion | Planner |
+| `tasks.md` | Atomic tasks tagged `[TDD]` or `[Eval-DD]` | Planner |
+| `eval-baseline.json` | ADK eval scores captured before implementation | `/eval-baseline` |
 
-All files include YAML frontmatter with: `id`, `parent_id`, `type`, `version`, `status`.
+## Dual Testing Strategy
+
+Agentic systems require two testing approaches:
+
+### TDD — Deterministic Code
+- Tool functions, Pydantic models, state helpers, data transformations
+- Tested with `pytest` using `DummyToolContext`
+- RED-GREEN-REFACTOR with 3-agent role separation
+
+### Eval-DD — Agentic Behavior
+- Prompt instructions, tool selection, response quality, conversation flow
+- Tested with ADK `AgentEvaluator` and evalset JSON files
+- Baseline captured before changes, scores compared after
+- Thresholds: `tool_trajectory_avg_score >= 0.8`, `response_match_score >= 0.7`
+
+### When to use which
+
+| Change type | Testing method | Artifact |
+|-------------|---------------|----------|
+| New tool function | TDD | `tests/unit/test_*.py` |
+| Tool return format | TDD | `tests/unit/test_*.py` |
+| State helper logic | TDD | `tests/unit/test_*.py` |
+| Prompt instruction edit | Eval-DD | `tests/eval/data/*.evalset.json` |
+| Tool selection behavior | Eval-DD | `tests/eval/data/*.evalset.json` |
+| Response quality | Eval-DD | `tests/eval/data/*.evalset.json` |
+| New conversation phase | Both | Unit tests + eval cases |
 
 ## Templates
 
@@ -35,24 +58,10 @@ The `/feature-spec` skill handles this automatically.
 ## Rules
 
 1. **Plan before code** — workitem must exist before implementation
-2. **Design verdict required** — `status: approved` before coding starts
-3. **Tasks are atomic** — each task < 2 hours, one testable behavior
-4. **TDD for tools** — deterministic tool logic tested with pytest
-5. **Eval-DD for behavior** — prompt/routing changes tested with ADK evals
-6. **State keys declared** — all new state keys added to `constants.py`
-7. **Every file <= 100 lines** — split the feature if exceeded
-
-## Design Verdict Values
-
-| Status | Meaning |
-|--------|---------|
-| `draft` | Initial creation, not yet reviewed |
-| `reviewed` | Design review complete |
-| `approved` | Approved, ready for implementation |
-| `changes_required` | Must address findings first |
-
-## Progress Tracking
-
-Update `master-plan.md` when:
-- A new feature is created: add entry with `[ ]`
-- A feature reaches 100%: mark `[x]` and update Done count
+2. **Design verdict required** — `status: approved` before coding
+3. **Tasks are atomic** — each < 2 hours, one testable behavior
+4. **TDD for tools** — deterministic logic tested with pytest
+5. **Eval-DD for behavior** — prompt/routing tested with ADK evals
+6. **Eval baseline required** — capture before any prompt change
+7. **No threshold regression** — eval scores must not drop below baseline
+8. **State keys declared** — new keys added to `constants.py`

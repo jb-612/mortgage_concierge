@@ -24,8 +24,9 @@ updated_at: "YYYY-MM-DDTHH:MM:SSZ"
 ## Dependency Graph
 
 ```
-T01 ──> T02 ──> T05
-T03 ──> T04 ──> T05
+T01 ──> T02 ──> T06
+T03 ──> T04 ──> T06
+T05 ──────────> T06
 ```
 
 ## Tasks
@@ -48,27 +49,38 @@ T03 ──> T04 ──> T05
 - [ ] Dependencies: T01
 - [ ] Notes: Add getters/setters to state_helpers.py
 
-### T04: Prompt instruction update [Eval-DD]
+### T04: Eval cases for tool selection [Eval-DD]
 - [ ] Estimate: 30min
-- [ ] Tests: tests/eval/data/feature.evalset.json
+- [ ] Eval: tests/eval/data/feature.evalset.json
+- [ ] Baseline: .workitems/Pnn/Fnn/eval-baseline.json
+- [ ] Thresholds: tool_trajectory >= 0.8, response_match >= 0.7
 - [ ] Dependencies: T02, T03
-- [ ] Notes: Capture eval baseline before modifying prompt.py
+- [ ] Notes: Write evalset entries before prompt changes
 
-### T05: Integration and agent registration [TDD]
+### T05: Prompt instruction update [Eval-DD]
+- [ ] Estimate: 30min
+- [ ] Eval: tests/eval/data/feature.evalset.json
+- [ ] Baseline: captured in T04
+- [ ] Thresholds: scores must not regress below T04 baseline
+- [ ] Dependencies: T04
+- [ ] Notes: Capture baseline, edit prompt.py, compare, accept/revert
+
+### T06: Integration and agent registration [TDD]
 - [ ] Estimate: 30min
 - [ ] Tests: tests/integration/test_feature.py
-- [ ] Dependencies: T02, T03, T04
-- [ ] Notes: Register tool in agent.py, verify end-to-end flow
+- [ ] Dependencies: T02, T03, T05
+- [ ] Notes: Register tool in agent.py, verify end-to-end
 
 ## Summary
 
-| Phase | Tasks | Est. Hours |
-|-------|-------|------------|
-| Data contracts | T01, T03 | Xhr |
-| Tool logic | T02 | Xhr |
-| Agent behavior | T04 | Xhr |
-| Integration | T05 | Xhr |
-| **Total** | **N tasks** | **Xhr** |
+| Phase | Tasks | Type | Est. Hours |
+|-------|-------|------|------------|
+| Data contracts | T01, T03 | TDD | Xhr |
+| Tool logic | T02 | TDD | Xhr |
+| Eval coverage | T04 | Eval-DD | Xhr |
+| Agent behavior | T05 | Eval-DD | Xhr |
+| Integration | T06 | TDD | Xhr |
+| **Total** | **N tasks** | | **Xhr** |
 
 ## Deliverables Checklist
 
@@ -76,6 +88,9 @@ T03 ──> T04 ──> T05
 - [ ] Tool registered in `agent.py` tools list
 - [ ] Tool documented in `prompt.py` AGENT_INSTRUCTION
 - [ ] State keys declared in `constants.py`
-- [ ] All unit tests pass (`pytest tests/unit/`)
+- [ ] Unit tests pass (`pytest tests/unit/`)
+- [ ] Eval baseline captured in workitem folder (`eval-baseline.json`)
+- [ ] Eval cases added to evalset (`tests/eval/data/`)
 - [ ] Eval scores at or above baseline (`adk eval`)
+- [ ] No eval threshold regressions below: tool >= 0.8, response >= 0.7
 - [ ] Consumer impact assessed (see design.md Consumers table)

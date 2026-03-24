@@ -31,6 +31,14 @@ updated_at: "YYYY-MM-DDTHH:MM:SSZ"
 **Agent does**: calls `tool_name(params)` then responds with [description]
 **State after**: `state_key` contains [expected value]
 
+### Eval Mapping
+
+| Criterion | Test type | Artifact |
+|-----------|-----------|----------|
+| Correct tool called | Eval-DD | `feature.evalset.json` entry N |
+| Return data valid | TDD | `test_tool.py::test_name` |
+| State updated | TDD | `test_tool.py::test_state` |
+
 ---
 
 ## US-02: Story Title
@@ -50,12 +58,19 @@ updated_at: "YYYY-MM-DDTHH:MM:SSZ"
 **Agent does**: [expected behavior]
 **State after**: [expected state changes]
 
+### Eval Mapping
+
+| Criterion | Test type | Artifact |
+|-----------|-----------|----------|
+| Criterion 1 | TDD/Eval-DD | artifact path |
+
 ---
 
 ## Edge Cases
 
-| Scenario | Expected Behavior |
-|----------|-------------------|
-| Missing prerequisite state | Agent explains what's needed first |
-| Invalid input values | Tool returns error, agent explains clearly |
-| Multiple valid interpretations | Agent picks most likely, confirms with user |
+| Scenario | Expected Behavior | Test Type |
+|----------|-------------------|-----------|
+| Missing prerequisite state | Agent explains what's needed | Eval-DD |
+| Invalid input values | Tool returns error, agent explains | TDD + Eval-DD |
+| Multiple valid interpretations | Agent picks most likely, confirms | Eval-DD |
+| Adversarial input | Agent maintains role, no hallucination | Eval-DD |
